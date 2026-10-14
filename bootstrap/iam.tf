@@ -53,6 +53,7 @@ data "aws_iam_policy_document" "github_permissions" {
     effect = "Allow"
     actions = [
       "s3:ListBucket",
+      "s3:GetBucketLocation",
       "s3:GetBucketVersioning"
     ]
     resources = [local.state_bucket_arn]
@@ -229,6 +230,7 @@ data "aws_iam_policy_document" "github_permissions" {
       "ec2:CreateSecurityGroup",
       "ec2:DeleteSecurityGroup",
       "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSecurityGroupRules",
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:AuthorizeSecurityGroupEgress",
       "ec2:RevokeSecurityGroupIngress",
@@ -239,7 +241,9 @@ data "aws_iam_policy_document" "github_permissions" {
       "ec2:CreateTags",
       "ec2:DeleteTags",
       "ec2:DescribeAvailabilityZones",
-      "ec2:DescribeNetworkInterfaces"
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeVpcAttribute",
+      "ec2:DescribeNetworkAcls"
     ]
     resources = ["*"]
   }
@@ -299,6 +303,7 @@ data "aws_iam_policy_document" "github_permissions" {
       "ssm:DeleteParameter",
       "ssm:DescribeParameters",
       "ssm:AddTagsToResource",
+      "ssm:RemoveTagsFromResource",
       "ssm:ListTagsForResource"
     ]
     resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/secure-demo-*"]

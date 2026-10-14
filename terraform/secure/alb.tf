@@ -27,6 +27,9 @@ resource "aws_lb" "app" {
     enabled = true
   }
 
+  # Ensure the bucket policy exists before the ALB tries to write logs.
+  depends_on = [aws_s3_bucket_policy.alb_logs]
+
   tags = {
     Name = "${local.name}-alb"
   }
