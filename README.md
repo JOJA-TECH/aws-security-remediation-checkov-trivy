@@ -376,7 +376,9 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 ├── docs/
 │   ├── hallazgos-iniciales.md
 │   ├── correcciones.md
-│   └── evidencias.md
+│   ├── evidencias.md
+│   ├── demo-guion.md
+│   └── checklist.md
 ├── checkov/
 │   └── secure.yaml            # skips justificados para la infra segura
 ├── trivy/
