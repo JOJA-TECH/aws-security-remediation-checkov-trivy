@@ -48,6 +48,11 @@ resource "aws_s3_bucket_versioning" "artifacts" {
   }
 }
 
+resource "aws_s3_bucket_notification" "artifacts" {
+  bucket      = aws_s3_bucket.artifacts.id
+  eventbridge = true
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
 
