@@ -12,11 +12,11 @@ corresponden a las versiones indicadas.
 checkov -d terraform/insecure --framework terraform
 
 # Checkov sobre la infraestructura corregida (debe quedar en 0)
-checkov -d terraform/secure --framework terraform --config-file .checkov.yaml
+checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 
 # Trivy: misconfiguración de IaC
 trivy config terraform/insecure
-trivy config terraform/secure --ignorefile .trivyignore
+trivy config terraform/secure --ignorefile trivy/secure.ignore
 
 # Trivy: secretos en el repositorio
 trivy fs --scanners secret,misconfig terraform/insecure

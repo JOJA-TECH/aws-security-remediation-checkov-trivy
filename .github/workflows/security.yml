@@ -73,20 +73,20 @@ jobs:
         run: pip install --no-cache-dir "checkov==3.2.334"
 
       # ---- SECURE: strict gate. Fails if ANY check fails. --------------------
-      # Exceptions must be explicit, justified skips in .checkov.yaml.
+      # Exceptions must be explicit, justified skips in checkov/secure.yaml.
       - name: Checkov - secure (gate)
         run: |
           mkdir -p checkov-results/secure
           checkov -d terraform/secure \
             --framework terraform \
-            --config-file .checkov.yaml \
+            --config-file checkov/secure.yaml \
             --output cli \
             --output json \
             --output-file-path checkov-results/secure \
             --compact
 
       # ---- INSECURE: informational only, produces the evidence list. --------
-      # Scanned WITHOUT .checkov.yaml so every finding stays visible.
+      # Scanned WITHOUT the secure config so every finding stays visible.
       - name: Checkov - insecure (informational)
         continue-on-error: true
         run: |
@@ -152,7 +152,7 @@ jobs:
           scanners: "secret,misconfig"
           skip-dirs: "terraform/insecure,docs,.git"
           skip-files: "app/Dockerfile.insecure"
-          trivyignores: ".trivyignore"
+          trivyignores: "trivy/secure.ignore"
           format: "sarif"
           output: "trivy-results/secure-fs.sarif"
           severity: "CRITICAL,HIGH"
@@ -178,7 +178,7 @@ jobs:
           output: "trivy-results/secure-config.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
-          trivyignores: ".trivyignore"
+          trivyignores: "trivy/secure.ignore"
 
       - name: Upload Trivy results
         if: always()

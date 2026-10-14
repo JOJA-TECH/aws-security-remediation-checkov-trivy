@@ -188,8 +188,8 @@ docker run --rm -p 8080:8080 secure-demo:local
 # Insegura: muestra todos los hallazgos
 checkov -d terraform/insecure --framework terraform
 
-# Corregida: debe quedar en 0 (usa los skips justificados de .checkov.yaml)
-checkov -d terraform/secure --framework terraform --config-file .checkov.yaml
+# Corregida: debe quedar en 0 (usa los skips justificados de checkov/secure.yaml)
+checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 ```
 
 ## 13. Ejecución de Trivy
@@ -197,7 +197,7 @@ checkov -d terraform/secure --framework terraform --config-file .checkov.yaml
 ```bash
 # Misconfiguración de IaC
 trivy config terraform/insecure
-trivy config terraform/secure --ignorefile .trivyignore
+trivy config terraform/secure --ignorefile trivy/secure.ignore
 
 # Secretos y misconfiguración en el repositorio
 trivy fs --scanners secret,misconfig terraform/insecure
@@ -285,7 +285,7 @@ Respuesta esperada de `/health`:
 - `terraform fmt -check` o `terraform validate` fallan.
 - **Checkov** reporta **cualquier** control fallido en `terraform/secure`
   (las excepciones deben ser skips específicos y justificados en
-  `.checkov.yaml`; nunca `soft-fail` global).
+  `checkov/secure.yaml`; nunca `soft-fail` global).
 - **Trivy image** detecta `CRITICAL`/`HIGH` **con fix** (política
   `--ignore-unfixed`, justificada en `docs/correcciones.md`).
 - **Trivy fs** detecta secretos o misconfiguraciones `CRITICAL`/`HIGH` en las
@@ -377,8 +377,10 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 │   ├── hallazgos-iniciales.md
 │   ├── correcciones.md
 │   └── evidencias.md
-├── .checkov.yaml
-├── .trivyignore
+├── checkov/
+│   └── secure.yaml            # skips justificados para la infra segura
+├── trivy/
+│   └── secure.ignore          # excepciones justificadas de Trivy
 ├── docker-compose.yml
 ├── .gitignore
 └── README.md

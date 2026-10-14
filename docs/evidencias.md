@@ -46,23 +46,23 @@ trivy image --severity CRITICAL,HIGH insecure-demo:ci | tee docs/evidencias/triv
 ## 6. Checkov exitoso tras las correcciones
 
 ```bash
-checkov -d terraform/secure --framework terraform --config-file .checkov.yaml
+checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 ```
-- **Esperado:** `Passed: 158, Failed: 0` (con los skips justificados de `.checkov.yaml`).
+- **Esperado:** `Passed: 158, Failed: 0` (con los skips justificados de `checkov/secure.yaml`).
 - **Captura:** salida con “Passed checks” y 0 failed.
 
 ## 7. Trivy exitoso tras las correcciones
 
 ```bash
-trivy config --ignorefile .trivyignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
+trivy config --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
 trivy fs --scanners secret,misconfig --skip-dirs terraform/insecure --skip-files app/Dockerfile.insecure \
-  --ignorefile .trivyignore --severity CRITICAL,HIGH --exit-code 1 .
+  --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 .
 docker build -t secure-demo:ci ./app
 trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 secure-demo:ci
 ```
 - **Esperado:** exit code 0. Si aparecen CVE fijos, actualizar la imagen base
   `python:3.12.x-slim-bookworm`. Registrar cualquier vulnerabilidad aceptada
-  (sin fix) en `.trivyignore` **con justificación**.
+  (sin fix) en `trivy/secure.ignore` **con justificación**.
 
 ## 8. Pipeline bloqueado por una vulnerabilidad/incumplimiento
 

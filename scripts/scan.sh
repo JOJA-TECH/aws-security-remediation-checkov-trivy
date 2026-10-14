@@ -38,7 +38,7 @@ if have checkov; then
     --soft-fail --compact || true
 
   log "Checkov: secure (gate, must be clean)"
-  checkov -d terraform/secure --framework terraform --config-file .checkov.yaml \
+  checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml \
     --output cli --output json --output-file-path "$REPORTS_DIR/checkov-secure" --compact
 else
   echo "checkov not found - skipping. Install: pip install checkov" >&2
@@ -49,13 +49,13 @@ if have trivy; then
   trivy config --quiet terraform/insecure > "$REPORTS_DIR/trivy-config-insecure.txt" || true
 
   log "Trivy config: secure (gate)"
-  trivy config --quiet --ignorefile .trivyignore --severity CRITICAL,HIGH \
+  trivy config --quiet --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH \
     --exit-code 1 terraform/secure | tee "$REPORTS_DIR/trivy-config-secure.txt"
 
   log "Trivy fs: secrets + misconfig (gate)"
   trivy fs --quiet --scanners secret,misconfig \
     --skip-dirs terraform/insecure --skip-dirs docs --skip-dirs .git \
-    --skip-files app/Dockerfile.insecure --ignorefile .trivyignore \
+    --skip-files app/Dockerfile.insecure --ignorefile trivy/secure.ignore \
     --severity CRITICAL,HIGH --exit-code 1 . | tee "$REPORTS_DIR/trivy-fs-secure.txt"
 else
   echo "trivy not found - skipping. See README for install." >&2
