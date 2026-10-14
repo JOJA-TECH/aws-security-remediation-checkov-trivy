@@ -23,9 +23,16 @@ resource "aws_default_security_group" "default" {
 }
 
 resource "aws_security_group" "app" {
-  name        = "${local.name}-app-sg"
+  name_prefix = "${local.name}-app-sg-"
   description = "Controls traffic to the demo application (remediated)."
   vpc_id      = aws_vpc.main.id
+
+  # The old (insecure) group cannot be deleted while the running ECS task still
+  # holds an ENI in it, so create the remediated group first and repoint the
+  # service before the old one is destroyed.
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = {
     Name = "${local.name}-app-sg"
