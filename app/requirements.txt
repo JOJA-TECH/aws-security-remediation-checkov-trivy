@@ -1,8 +1,8 @@
 # Runtime dependencies
 #
 # The application only uses the Python standard library, so there are no
-# third-party runtime packages. The build tooling below is pinned to keep the
-# image reproducible and to give dependency scanners something deterministic
-# to inspect.
-setuptools==70.0.0
-wheel==0.43.0
+# third-party runtime packages. The secure image therefore installs nothing
+# here and removes pip/setuptools/wheel at runtime.
+#
+# The insecure image (Dockerfile.insecure) still runs `pip install -r` against
+# this file to demonstrate an unpinned/legacy build; keep it empty on purpose.

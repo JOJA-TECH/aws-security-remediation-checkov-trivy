@@ -2,8 +2,14 @@
 # Storage -- SECURE
 #
 #   - Private bucket (all public access blocked).
-#   - SSE-KMS encryption, versioning and lifecycle expiration.
+#   - SSE-S3 encryption (AES256), versioning and lifecycle expiration.
 #   - Used for ALB access logs; policy allows ONLY the ELB service account.
+#
+# NOTE: AWS ELB access-log delivery does NOT support SSE-KMS (customer-managed
+# keys). The bucket must use SSE-S3 (AES256). See:
+# https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+# The CKV_AWS_145 exception is recorded in checkov/secure.yaml and AWS-0132 in
+# trivy/secure.ignore.
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "alb_logs" {
@@ -29,10 +35,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.arn
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 

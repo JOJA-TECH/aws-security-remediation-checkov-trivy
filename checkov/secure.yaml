@@ -38,6 +38,12 @@ skip-check:
   # Control: CKV_AWS_144 (S3 cross-region replication). Reason: single-region
   # academic deployment; versioning + KMS provide durability. Review: 2026-06-30
   - CKV_AWS_144
+  # Control: CKV_AWS_145 (S3 default encryption must be a customer-managed KMS
+  # key). Reason: the bucket receives ALB access logs and AWS ELB log delivery
+  # does NOT support SSE-KMS (only SSE-S3/AES256). The bucket is still encrypted
+  # at rest and has Block Public Access enabled. Applies ONLY to this log bucket.
+  # Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_145
 
   # --- Demo teardown ergonomics ---------------------------------------------
   # Control: CKV_AWS_150 (ALB deletion protection). Reason: the exercise must

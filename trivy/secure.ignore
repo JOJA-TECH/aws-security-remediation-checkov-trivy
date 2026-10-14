@@ -11,8 +11,12 @@
 #   APIs (ECR, SSM, KMS) through the NAT gateway. Restricted to port 443.
 # AVD-AWS-0089 / AWS-0089 : S3 server access logging on the ALB-logs bucket
 #   itself is not applicable (it already stores access logs).
+# AVD-AWS-0132 / AWS-0132 : S3 default encryption must be a customer-managed
+#   KMS key. AWS ELB access-log delivery does not support SSE-KMS, so the
+#   ALB-logs bucket uses SSE-S3 (AES256); it is still encrypted at rest.
 
 AWS-0053
 AWS-0054
 AWS-0104
 AWS-0089
+AWS-0132
