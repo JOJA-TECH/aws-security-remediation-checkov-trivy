@@ -75,3 +75,9 @@ variable "container_port" {
   type        = number
   default     = 8080
 }
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days. Minimum 365 to satisfy CKV_AWS_338."
+  type        = number
+  default     = 365
+}
