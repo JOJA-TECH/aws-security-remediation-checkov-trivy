@@ -1,0 +1,8 @@
+# Runtime dependencies
+#
+# The application only uses the Python standard library, so there are no
+# third-party runtime packages. The build tooling below is pinned to keep the
+# image reproducible and to give dependency scanners something deterministic
+# to inspect.
+setuptools==70.0.0
+wheel==0.43.0

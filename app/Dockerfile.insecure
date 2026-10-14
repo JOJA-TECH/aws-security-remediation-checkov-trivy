@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+# ---------------------------------------------------------------------------
+# INSECURE Dockerfile  --  ACADEMIC USE ONLY
+#
+# This file intentionally contains security anti-patterns so that Trivy and
+# Checkov report findings during the exercise. NEVER use it in production.
+#
+# Intentional problems:
+#   1. Uses the mutable "latest" tag for the base image.
+#   2. Runs as root (no USER directive).
+#   3. Bakes fake secrets into the image as environment variables.
+#   4. Builds with the build cache disabled checks removed / no HEALTHCHECK.
+#   5. Installs dependencies without pinning the base OS.
+#
+# All credentials below are FAKE placeholders. The AWS values are the public
+# example keys documented by AWS and are not valid credentials.
+# ---------------------------------------------------------------------------
+FROM python:latest
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+
+COPY src/ ./src/
+
+# INSECURE: fake secrets hardcoded as image environment variables.
+ENV DB_USER="admin" \
+    DB_PASSWORD="SuperSecret123!" \
+    API_TOKEN="ghp_0000000000000000000000000000000000" \
+    AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE" \
+    AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+    APP_NAME=insecure-infra-demo \
+    APP_VERSION=latest \
+    GIT_COMMIT=unknown \
+    PORT=8080
+
+# INSECURE: no USER directive -> container runs as root.
+
+EXPOSE 8080
+
+# INSECURE: no HEALTHCHECK.
+CMD ["python", "src/main.py"]
