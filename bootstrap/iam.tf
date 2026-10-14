@@ -11,7 +11,8 @@
 # ---------------------------------------------------------------------------
 
 locals {
-  state_bucket_arn = "arn:aws:s3:::${var.github_repo}-tfstate"
+  state_bucket_arn = "arn:aws:s3:::${var.github_repo}-tfstate-${data.aws_caller_identity.current.account_id}"
+  lock_table_arn   = "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.github_repo}-tflock"
 }
 
 data "aws_iam_policy_document" "github_assume" {
@@ -66,6 +67,18 @@ data "aws_iam_policy_document" "github_permissions" {
       "s3:DeleteObject"
     ]
     resources = ["${local.state_bucket_arn}/*"]
+  }
+
+  statement {
+    sid    = "TerraformStateLock"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:DescribeTable"
+    ]
+    resources = [local.lock_table_arn]
   }
 
   # --- Application buckets (scoped by project prefix) -----------------------
