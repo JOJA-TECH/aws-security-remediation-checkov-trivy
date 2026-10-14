@@ -57,10 +57,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
       days = 30
     }
 
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = 7
     }
   }
+}
+
+resource "aws_s3_bucket_notification" "alb_logs" {
+  bucket      = aws_s3_bucket.alb_logs.id
+  eventbridge = true
 }
 
 data "aws_iam_policy_document" "alb_logs" {

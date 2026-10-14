@@ -5,7 +5,17 @@
 #   - Application port reachable ONLY from the load balancer security group.
 #   - Every rule and group has a description.
 #   - Egress restricted to HTTPS (image pull / AWS APIs) and DNS.
+#   - The VPC default security group is locked down (no rules).
 # ---------------------------------------------------------------------------
+
+# Lock down the VPC default security group: no inbound or outbound rules.
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${local.name}-default-sg"
+  }
+}
 
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb-sg"

@@ -25,11 +25,13 @@ RUN pip install -r requirements.txt
 COPY src/ ./src/
 
 # INSECURE: fake secrets hardcoded as image environment variables.
+# (Values are FAKE. They intentionally match well-known secret patterns so the
+#  scanners report them during the exercise.)
 ENV DB_USER="admin" \
     DB_PASSWORD="SuperSecret123!" \
-    API_TOKEN="ghp_0000000000000000000000000000000000" \
-    AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE" \
-    AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+    API_TOKEN="ghp_FAKEfakeFAKEfake1234567890abcdefghij" \
+    AWS_ACCESS_KEY_ID="AKIAFAKEKEY123456789" \
+    AWS_SECRET_ACCESS_KEY="FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE1234" \
     APP_NAME=insecure-infra-demo \
     APP_VERSION=latest \
     GIT_COMMIT=unknown \

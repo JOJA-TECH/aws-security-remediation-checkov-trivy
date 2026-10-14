@@ -1,0 +1,155 @@
+name: Deploy
+
+# Deploys ONLY after the "Security" workflow succeeds on main. The
+# workflow_run trigger receives the head_sha/head_branch of the triggering run.
+on:
+  workflow_run:
+    workflows: ["Security"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for OIDC -> AWS.
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  PROJECT: secure-demo
+  ENVIRONMENT: dev
+  TF_WORKING_DIR: terraform/secure
+
+jobs:
+  deploy:
+    name: Build, push and deploy to AWS
+    runs-on: ubuntu-latest
+    # Renders the OIDC subject as: repo:ORG/REPO:environment:production,
+    # matching the bootstrap trust policy. Add required reviewers here to
+    # create a manual approval gate.
+    environment: production
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Resolve target commit
+        id: ref
+        run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.sha }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-${{ github.run_id }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform init (remote state)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      # Stage 1: create the ECR repository (and the KMS key it depends on) so
+      # that an image can be pushed before the service exists.
+      - name: Terraform apply (bootstrap ECR only)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -target=aws_ecr_repository.app \
+            -var "project=${PROJECT}" \
+            -var "environment=${ENVIRONMENT}" \
+            -var "region=${AWS_REGION}" \
+            -var "image_uri=placeholder@sha256:$(printf '0%.0s' $(seq 1 64))"
+
+      - name: Build and push image (tagged with commit SHA)
+        id: build
+        env:
+          ECR_REPOSITORY: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ env.ENVIRONMENT }}-app
+        run: |
+          IMAGE_TAG="${GITHUB_SHA}"
+          docker build \
+            --build-arg APP_VERSION="${IMAGE_TAG}" \
+            --build-arg GIT_COMMIT="${GITHUB_SHA}" \
+            -t "${ECR_REPOSITORY}:${IMAGE_TAG}" ./app
+          docker push "${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          DIGEST=$(aws ecr describe-images \
+            --repository-name "${PROJECT}-${ENVIRONMENT}-app" \
+            --image-ids imageTag="${IMAGE_TAG}" \
+            --query 'imageDetails[0].imageDigest' --output text)
+
+          echo "image_uri=${ECR_REPOSITORY}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${ECR_REPOSITORY}:${IMAGE_TAG} (${DIGEST})"
+
+      - name: Terraform apply (full secure stack)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var "project=${PROJECT}" \
+            -var "environment=${ENVIRONMENT}" \
+            -var "region=${AWS_REGION}" \
+            -var "image_uri=${{ steps.build.outputs.image_uri }}"
+
+      - name: Get deployment endpoints
+        id: outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "app_url=$(terraform output -raw app_url)" >> "$GITHUB_OUTPUT"
+          echo "health_url=$(terraform output -raw health_url)" >> "$GITHUB_OUTPUT"
+          echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
+          echo "service=$(terraform output -raw ecs_service_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for ECS service to be stable
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ steps.outputs.outputs.cluster }}" \
+            --services "${{ steps.outputs.outputs.service }}"
+          echo "ECS service is stable."
+
+      - name: Verify /health endpoint
+        run: |
+          URL="${{ steps.outputs.outputs.health_url }}"
+          echo "Testing ${URL}"
+          for i in $(seq 1 18); do
+            if curl -fsS --max-time 5 "${URL}"; then
+              echo ""
+              echo "Health check passed on attempt ${i}."
+              exit 0
+            fi
+            echo "Attempt ${i} failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed after retries."
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Deployment summary"
+            echo ""
+            echo "- Commit: \`${{ steps.ref.outputs.sha }}\`"
+            echo "- Image: \`${{ steps.build.outputs.image_uri }}\`"
+            echo "- Application URL: ${{ steps.outputs.outputs.app_url }}"
+            echo "- Health URL: ${{ steps.outputs.outputs.health_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

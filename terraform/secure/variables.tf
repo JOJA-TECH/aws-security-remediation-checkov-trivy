@@ -92,9 +92,9 @@ variable "container_port" {
 }
 
 variable "log_retention_days" {
-  description = "CloudWatch log retention in days."
+  description = "CloudWatch log retention in days. Minimum 365 to satisfy CKV_AWS_338."
   type        = number
-  default     = 7
+  default     = 365
 }
 
 variable "allowed_http_cidrs" {

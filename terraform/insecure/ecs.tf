@@ -34,13 +34,15 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
       # INSECURE: fake secrets in plain-text environment variables.
+      # (Values are FAKE and match documented secret-scanner patterns only to
+      #  make Trivy report them during the exercise.)
       environment = [
         { name = "APP_VERSION", value = var.image_tag },
         { name = "DB_USER", value = "admin" },
         { name = "DB_PASSWORD", value = "SuperSecret123!" },
-        { name = "API_TOKEN", value = "ghp_0000000000000000000000000000000000" },
-        { name = "AWS_ACCESS_KEY_ID", value = "AKIAIOSFODNN7EXAMPLE" },
-        { name = "AWS_SECRET_ACCESS_KEY", value = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" }
+        { name = "API_TOKEN", value = "ghp_FAKEfakeFAKEfake1234567890abcdefghij" },
+        { name = "AWS_ACCESS_KEY_ID", value = "AKIAFAKEKEY123456789" },
+        { name = "AWS_SECRET_ACCESS_KEY", value = "FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE1234" }
       ]
       logConfiguration = {
         logDriver = "awslogs"

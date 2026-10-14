@@ -8,6 +8,14 @@
 # Bootstrap itself intentionally uses local state (chicken-and-egg).
 # ---------------------------------------------------------------------------
 
+resource "aws_kms_key" "tfstate" {
+  description             = "KMS key for Terraform remote state."
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = var.tags
+}
+
 resource "aws_s3_bucket" "tfstate" {
   bucket        = "${var.github_repo}-tfstate-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
@@ -37,7 +45,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "aws:kms"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.tfstate.arn
     }
     bucket_key_enabled = true
   }
@@ -54,6 +63,11 @@ resource "aws_dynamodb_table" "tflock" {
   }
 
   server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.tfstate.arn
+  }
+
+  point_in_time_recovery {
     enabled = true
   }
 

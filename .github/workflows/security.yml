@@ -1,0 +1,196 @@
+name: Security
+
+# Runs on every pull request and on pushes to the main branch. Also callable
+# as a reusable workflow (`workflow_call`) so the deploy workflow can depend
+# on it explicitly if desired.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_call:
+
+# Least privilege for the GITHUB_TOKEN. security-events is needed to publish
+# SARIF results to code scanning.
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SECURE_IMAGE: secure-demo:ci
+
+jobs:
+  terraform:
+    name: Terraform fmt & validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: terraform fmt -check (insecure)
+        working-directory: terraform/insecure
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform fmt -check (secure)
+        working-directory: terraform/secure
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform init & validate (insecure)
+        working-directory: terraform/insecure
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: terraform init & validate (secure)
+        working-directory: terraform/secure
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  checkov:
+    name: Checkov (IaC scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: pip install --no-cache-dir "checkov==3.2.334"
+
+      # ---- SECURE: strict gate. Fails if ANY check fails. --------------------
+      # Exceptions must be explicit, justified skips in .checkov.yaml.
+      - name: Checkov - secure (gate)
+        run: |
+          mkdir -p checkov-results/secure
+          checkov -d terraform/secure \
+            --framework terraform \
+            --config-file .checkov.yaml \
+            --output cli \
+            --output json \
+            --output-file-path checkov-results/secure \
+            --compact
+
+      # ---- INSECURE: informational only, produces the evidence list. --------
+      # Scanned WITHOUT .checkov.yaml so every finding stays visible.
+      - name: Checkov - insecure (informational)
+        continue-on-error: true
+        run: |
+          mkdir -p checkov-results/insecure
+          checkov -d terraform/insecure \
+            --framework terraform \
+            --output cli \
+            --output json \
+            --output-file-path checkov-results/insecure \
+            --soft-fail \
+            --compact
+
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: checkov-results
+          if-no-files-found: warn
+
+  image-scan:
+    name: Build image & Trivy scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build secure image
+        run: |
+          docker build \
+            --build-arg APP_VERSION=ci \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            -t "$SECURE_IMAGE" ./app
+
+      - name: Build insecure image (informational)
+        run: docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app
+
+      - name: Trivy image - secure (gate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.SECURE_IMAGE }}
+          format: "sarif"
+          output: "trivy-results/secure-image.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "1"
+          vuln-type: "os,library"
+
+      - name: Trivy image - insecure (informational)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "insecure-demo:ci"
+          format: "table"
+          output: "trivy-results/insecure-image.txt"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Trivy filesystem (secrets + misconfig) - secure (gate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          scanners: "secret,misconfig"
+          skip-dirs: "terraform/insecure,docs,.git"
+          skip-files: "app/Dockerfile.insecure"
+          trivyignores: ".trivyignore"
+          format: "sarif"
+          output: "trivy-results/secure-fs.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Trivy filesystem - insecure (informational)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "terraform/insecure"
+          scanners: "secret,misconfig"
+          format: "table"
+          output: "trivy-results/insecure-fs.txt"
+          exit-code: "1"
+
+      - name: Trivy config (Terraform misconfig) - gate on secure
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "config"
+          scan-ref: "terraform/secure"
+          format: "sarif"
+          output: "trivy-results/secure-config.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
+
+      - name: Upload Trivy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results
+          if-no-files-found: warn
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results

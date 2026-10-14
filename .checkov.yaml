@@ -1,0 +1,52 @@
+# Checkov configuration for the "secure" stack.
+#
+# Policy: terraform/secure MUST produce zero failed checks. Any finding that
+# cannot be addressed in this academic, low-cost scope is listed below as a
+# SPECIFIC, justified skip (never a global soft-fail). Each skip documents the
+# control, the technical reason, the risk, the compensating control, the
+# approver and the review date. See docs/correcciones.md for the full record.
+#
+# The insecure stack (terraform/insecure) is scanned WITHOUT this file so its
+# findings remain fully visible for the evidence report.
+
+skip-check:
+  # --- TLS / HTTPS unavailable without a domain + ACM certificate ------------
+  # Control: CKV_AWS_2  (ALB listener must use HTTPS)
+  # Risk: traffic between client and ALB is unencrypted.
+  # Compensating control: ALB is the only ingress; app-only HTTP demo data.
+  # Approver: arquitectura-uc | Review: 2026-06-30
+  # Terraform comment: see terraform/secure/alb.tf (EXCEPTION block).
+  - CKV_AWS_2
+  # Control: CKV_AWS_103 (ALB listener TLS >= 1.2) - no HTTPS listener exists.
+  - CKV_AWS_103
+  # Control: CKV_AWS_378 (target group must not use HTTP).
+  - CKV_AWS_378
+  # Control: CKV2_AWS_20 (ALB must redirect HTTP -> HTTPS).
+  - CKV2_AWS_20
+
+  # --- WAF not deployed (cost) ----------------------------------------------
+  # Control: CKV2_AWS_28 (public ALB should be protected by WAF).
+  # Risk: no L7 filtering. Compensating control: security-group IP allowlist
+  # via var.allowed_http_cidrs. Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV2_AWS_28
+
+  # --- S3 log-delivery bucket specifics -------------------------------------
+  # Control: CKV_AWS_18 (S3 server access logging on the log bucket itself).
+  # Reason: this bucket already receives ALB access logs; logging the logger is
+  # not required and would create an extra bucket. Review: 2026-06-30
+  - CKV_AWS_18
+  # Control: CKV_AWS_144 (S3 cross-region replication). Reason: single-region
+  # academic deployment; versioning + KMS provide durability. Review: 2026-06-30
+  - CKV_AWS_144
+
+  # --- Demo teardown ergonomics ---------------------------------------------
+  # Control: CKV_AWS_150 (ALB deletion protection). Reason: the exercise must
+  # be easy to destroy to control cost; documented compensating control is to
+  # enable it for production. Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_150
+
+  # --- Intentionally public web front door ----------------------------------
+  # Control: CKV_AWS_260 (no SG ingress 0.0.0.0/0 on port 80). Reason: the ALB
+  # is the public HTTP entrypoint of the demo. Narrow with allowed_http_cidrs.
+  # Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_260
