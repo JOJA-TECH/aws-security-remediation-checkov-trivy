@@ -3,10 +3,14 @@
 #
 # Intentional issues:
 #   - Image referenced by mutable tag "latest" (CKV_AWS_250 family / supply chain).
-#   - Container runs as root: no "user", no "readonlyRootFilesystem",
-#     explicit privileged (CKV_AWS_22, CKV_AWS_336).
+#   - Container runs as root: no "user", no "readonlyRootFilesystem"
+#     (CKV_AWS_22, CKV_AWS_336).
 #   - Secrets passed as plain environment variables (Trivy secret scan).
 #   - Task runs in public subnets with a public IP (CKV_AWS_130).
+#
+# NOTE: "privileged" was removed because AWS Fargate does not support privileged
+# containers (the task would never start). The container still runs as root with
+# a writable root filesystem, which are the security-relevant findings.
 # ---------------------------------------------------------------------------
 
 resource "aws_ecs_task_definition" "app" {
@@ -23,8 +27,7 @@ resource "aws_ecs_task_definition" "app" {
       name      = "app"
       image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
       essential = true
-      # INSECURE: runs as root, writable root filesystem, privileged.
-      privileged             = true
+      # INSECURE: runs as root with a writable root filesystem.
       readonlyRootFilesystem = false
       portMappings = [
         {
