@@ -1,0 +1,9 @@
+# Trivy ignore file for the REMEDIATED stack (terraform/insecure, after fixes).
+#
+# Only SPECIFIC misconfiguration IDs that cannot be addressed in this academic,
+# low-cost scope are listed. Each entry is justified in docs/remediacion.md.
+
+# AVD-AWS-0104 / AWS-0104 : Egress 443 to 0.0.0.0/0 is required for the task to
+#   reach AWS APIs (ECR, SSM, KMS, CloudWatch Logs) over the internet gateway.
+#   It is restricted to HTTPS (443) only; DNS egress is limited to the VPC CIDR.
+AWS-0104

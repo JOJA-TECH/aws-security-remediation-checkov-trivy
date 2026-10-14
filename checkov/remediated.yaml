@@ -1,0 +1,31 @@
+# Checkov configuration for the REMEDIATED stack (terraform/insecure, after the
+# fix commits).
+#
+# Policy: the remediated stack must be clean except for a SMALL, enumerated set
+# of findings that cannot be fixed within this academic, low-cost scope without
+# changing the architecture (which is what terraform/secure demonstrates).
+# Every skip below states the control, the reason, the risk, the compensating
+# control, the approver and the review date. See docs/remediacion.md.
+#
+# NOTE: the original vulnerable code is preserved in terraform/baseline and is
+# scanned WITHOUT this file so its findings stay fully visible for evidence.
+
+skip-check:
+  # --- Public app front door without a load balancer ------------------------
+  # Control: CKV_AWS_333 (ECS service must not auto-assign a public IP).
+  # Reason: this stack demonstrates an IN-PLACE fix that keeps the original
+  #   "publish the app on a task public IP" architecture. Introducing an ALB
+  #   (the real fix) is what terraform/secure does.
+  # Compensating control: ingress restricted to the single application port;
+  #   all other ports closed. Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_333
+
+  # --- Single-region artifact bucket ----------------------------------------
+  # Control: CKV_AWS_144 (S3 cross-region replication).
+  # Reason: single-region academic deployment; KMS + versioning provide
+  #   durability. Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_144
+  # Control: CKV_AWS_18 (S3 server access logging).
+  # Reason: would require a dedicated log bucket (extra cost/scope). The bucket
+  #   is private, encrypted and versioned. Approver: arquitectura-uc | Review: 2026-06-30
+  - CKV_AWS_18

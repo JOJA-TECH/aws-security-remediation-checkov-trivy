@@ -21,21 +21,33 @@ INSECURE_IMAGE="insecure-demo:local"
 log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Stacks:
+#   terraform/baseline  -> original intentionally-vulnerable code (informational)
+#   terraform/insecure  -> same stack AFTER the remediation commits (gate)
+#   terraform/secure    -> production-grade redesign (gate)
 log "Terraform fmt -check"
+(cd terraform/baseline && terraform fmt -check -recursive -diff)
 (cd terraform/insecure && terraform fmt -check -recursive -diff)
 (cd terraform/secure && terraform fmt -check -recursive -diff)
 
-log "Terraform validate (insecure)"
+log "Terraform validate (baseline)"
+(cd terraform/baseline && terraform init -backend=false -input=false >/dev/null && terraform validate)
+
+log "Terraform validate (remediated)"
 (cd terraform/insecure && terraform init -backend=false -input=false >/dev/null && terraform validate)
 
 log "Terraform validate (secure)"
 (cd terraform/secure && terraform init -backend=false -input=false >/dev/null && terraform validate)
 
 if have checkov; then
-  log "Checkov: insecure (informational, all findings)"
-  checkov -d terraform/insecure --framework terraform \
-    --output cli --output json --output-file-path "$REPORTS_DIR/checkov-insecure" \
+  log "Checkov: baseline (informational, all findings visible)"
+  checkov -d terraform/baseline --framework terraform \
+    --output cli --output json --output-file-path "$REPORTS_DIR/checkov-baseline" \
     --soft-fail --compact || true
+
+  log "Checkov: remediated (gate, must be clean)"
+  checkov -d terraform/insecure --framework terraform --config-file checkov/remediated.yaml \
+    --output cli --output json --output-file-path "$REPORTS_DIR/checkov-remediated" --compact
 
   log "Checkov: secure (gate, must be clean)"
   checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml \
@@ -45,8 +57,12 @@ else
 fi
 
 if have trivy; then
-  log "Trivy config: insecure (informational)"
-  trivy config --quiet terraform/insecure > "$REPORTS_DIR/trivy-config-insecure.txt" || true
+  log "Trivy config: baseline (informational)"
+  trivy config --quiet terraform/baseline > "$REPORTS_DIR/trivy-config-baseline.txt" || true
+
+  log "Trivy config: remediated (gate)"
+  trivy config --quiet --ignorefile trivy/remediated.ignore --severity CRITICAL,HIGH \
+    --exit-code 1 terraform/insecure | tee "$REPORTS_DIR/trivy-config-remediated.txt"
 
   log "Trivy config: secure (gate)"
   trivy config --quiet --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH \
@@ -54,7 +70,7 @@ if have trivy; then
 
   log "Trivy fs: secrets + misconfig (gate)"
   trivy fs --quiet --scanners secret,misconfig \
-    --skip-dirs terraform/insecure --skip-dirs docs --skip-dirs .git \
+    --skip-dirs terraform/baseline --skip-dirs docs --skip-dirs .git \
     --skip-files app/Dockerfile.insecure --ignorefile trivy/secure.ignore \
     --severity CRITICAL,HIGH --exit-code 1 . | tee "$REPORTS_DIR/trivy-fs-secure.txt"
 else

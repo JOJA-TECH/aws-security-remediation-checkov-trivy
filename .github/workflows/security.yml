@@ -39,7 +39,11 @@ jobs:
         with:
           terraform_version: 1.9.5
 
-      - name: terraform fmt -check (insecure)
+      - name: terraform fmt -check (baseline)
+        working-directory: terraform/baseline
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform fmt -check (remediated)
         working-directory: terraform/insecure
         run: terraform fmt -check -recursive -diff
 
@@ -47,7 +51,13 @@ jobs:
         working-directory: terraform/secure
         run: terraform fmt -check -recursive -diff
 
-      - name: terraform init & validate (insecure)
+      - name: terraform init & validate (baseline)
+        working-directory: terraform/baseline
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: terraform init & validate (remediated)
         working-directory: terraform/insecure
         run: |
           terraform init -backend=false -input=false
@@ -85,17 +95,30 @@ jobs:
             --output-file-path checkov-results/secure \
             --compact
 
-      # ---- INSECURE: informational only, produces the evidence list. --------
-      # Scanned WITHOUT the secure config so every finding stays visible.
-      - name: Checkov - insecure (informational)
+      # ---- REMEDIATED: strict gate on the fixed insecure stack. -------------
+      # Exceptions must be explicit, justified skips in checkov/remediated.yaml.
+      - name: Checkov - remediated (gate)
+        run: |
+          mkdir -p checkov-results/remediated
+          checkov -d terraform/insecure \
+            --framework terraform \
+            --config-file checkov/remediated.yaml \
+            --output cli \
+            --output json \
+            --output-file-path checkov-results/remediated \
+            --compact
+
+      # ---- BASELINE: informational only, produces the evidence list. --------
+      # Scanned WITHOUT any config so every original finding stays visible.
+      - name: Checkov - baseline (informational)
         continue-on-error: true
         run: |
-          mkdir -p checkov-results/insecure
-          checkov -d terraform/insecure \
+          mkdir -p checkov-results/baseline
+          checkov -d terraform/baseline \
             --framework terraform \
             --output cli \
             --output json \
-            --output-file-path checkov-results/insecure \
+            --output-file-path checkov-results/baseline \
             --soft-fail \
             --compact
 
@@ -150,7 +173,7 @@ jobs:
           scan-type: "fs"
           scan-ref: "."
           scanners: "secret,misconfig"
-          skip-dirs: "terraform/insecure,docs,.git"
+          skip-dirs: "terraform/baseline,docs,.git"
           skip-files: "app/Dockerfile.insecure"
           trivyignores: "trivy/secure.ignore"
           format: "sarif"
@@ -158,16 +181,27 @@ jobs:
           severity: "CRITICAL,HIGH"
           exit-code: "1"
 
-      - name: Trivy filesystem - insecure (informational)
+      - name: Trivy filesystem - baseline (informational)
         continue-on-error: true
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: "fs"
-          scan-ref: "terraform/insecure"
+          scan-ref: "terraform/baseline"
           scanners: "secret,misconfig"
           format: "table"
-          output: "trivy-results/insecure-fs.txt"
+          output: "trivy-results/baseline-fs.txt"
           exit-code: "1"
+
+      - name: Trivy config (Terraform misconfig) - gate on remediated
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "config"
+          scan-ref: "terraform/insecure"
+          format: "sarif"
+          output: "trivy-results/remediated-config.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          trivyignores: "trivy/remediated.ignore"
 
       - name: Trivy config (Terraform misconfig) - gate on secure
         uses: aquasecurity/trivy-action@0.28.0
