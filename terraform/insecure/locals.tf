@@ -7,6 +7,6 @@ locals {
     Ambiente    = var.environment
     Responsable = var.owner
     ManagedBy   = "terraform"
-    Version     = "insecure"
+    Version     = "remediated"
   }
 }

@@ -1,16 +1,17 @@
 # ---------------------------------------------------------------------------
-# ECS task & service -- INSECURE
+# ECS task & service -- REMEDIATED
 #
-# Intentional issues:
-#   - Image referenced by mutable tag "latest" (CKV_AWS_250 family / supply chain).
-#   - Container runs as root: no "user", no "readonlyRootFilesystem"
+# Fixed (was INSECURE):
+#   - Image pinned to an immutable reference (commit SHA tag or @sha256 digest);
+#     the mutable "latest" tag is rejected (supply chain).
+#   - Container runs as a non-root user with a read-only root filesystem
 #     (CKV_AWS_22, CKV_AWS_336).
-#   - Secrets passed as plain environment variables (Trivy secret scan).
-#   - Task runs in public subnets with a public IP (CKV_AWS_130).
+#   - No plain-text secrets: values come from SSM SecureString via "secrets".
+#   - Deployment circuit breaker rolls back on failures.
 #
-# NOTE: "privileged" was removed because AWS Fargate does not support privileged
-# containers (the task would never start). The container still runs as root with
-# a writable root filesystem, which are the security-relevant findings.
+# Accepted risk: the task keeps a public IP (this stack publishes the app
+# directly, without a load balancer). Ingress is limited to the app port by
+# the security group.
 # ---------------------------------------------------------------------------
 
 resource "aws_ecs_task_definition" "app" {
@@ -24,11 +25,12 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([
     {
-      name      = "app"
-      image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
-      essential = true
-      # INSECURE: runs as root with a writable root filesystem.
-      readonlyRootFilesystem = false
+      name                   = "app"
+      image                  = var.image_uri
+      essential              = true
+      readonlyRootFilesystem = true
+      privileged             = false
+      user                   = "10001:10001"
       portMappings = [
         {
           containerPort = var.container_port
@@ -36,17 +38,23 @@ resource "aws_ecs_task_definition" "app" {
           protocol      = "tcp"
         }
       ]
-      # INSECURE: fake secrets in plain-text environment variables.
-      # (Values are FAKE and match documented secret-scanner patterns only to
-      #  make Trivy report them during the exercise.)
       environment = [
-        { name = "APP_VERSION", value = var.image_tag },
-        { name = "DB_USER", value = "admin" },
-        { name = "DB_PASSWORD", value = "SuperSecret123!" },
-        { name = "API_TOKEN", value = "ghp_FAKEfakeFAKEfake1234567890abcdefghij" },
-        { name = "AWS_ACCESS_KEY_ID", value = "AKIAFAKEKEY123456789" },
-        { name = "AWS_SECRET_ACCESS_KEY", value = "FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE1234" }
+        { name = "APP_NAME", value = "insecure-infra-demo" },
+        { name = "PORT", value = tostring(var.container_port) }
       ]
+      # Secrets are pulled from SSM SecureString at runtime, never stored in
+      # the task definition or the image.
+      secrets = [
+        { name = "DB_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },
+        { name = "API_TOKEN", valueFrom = aws_ssm_parameter.api_token.arn }
+      ]
+      healthCheck = {
+        command     = ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').status == 200 else 1)\""]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 10
+      }
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -70,13 +78,21 @@ resource "aws_ecs_service" "app" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
+  wait_for_steady_state              = true
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
   network_configuration {
     subnets = aws_subnet.public[*].id
     security_groups = [
       aws_security_group.app.id
     ]
-    # INSECURE: assigns a public IP directly to the task.
     assign_public_ip = true
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
   }
 
   tags = {

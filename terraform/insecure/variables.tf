@@ -46,10 +46,19 @@ variable "availability_zones" {
   default     = ["us-east-1a", "us-east-1b"]
 }
 
-variable "image_tag" {
-  description = "Container image tag to deploy. INSECURE: defaults to mutable 'latest'."
+variable "image_uri" {
+  description = "Fully qualified container image URI. MUST be immutable (commit SHA tag or @sha256 digest). 'latest' is rejected."
   type        = string
-  default     = "latest"
+
+  validation {
+    condition     = !can(regex(":latest$", var.image_uri))
+    error_message = "image_uri must not use the mutable 'latest' tag. Use a commit SHA tag or an image digest (@sha256:...)."
+  }
+
+  validation {
+    condition     = can(regex("@sha256:", var.image_uri)) || can(regex(":[0-9a-f]{7,64}$", var.image_uri))
+    error_message = "image_uri must be pinned to an immutable reference (commit SHA tag or @sha256 digest)."
+  }
 }
 
 variable "task_cpu" {
