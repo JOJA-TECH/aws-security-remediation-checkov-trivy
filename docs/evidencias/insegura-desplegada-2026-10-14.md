@@ -34,8 +34,8 @@ y el SG expone la app al mundo. `image_tag = latest`.
 
 ## Resultados de seguridad (fase insegura)
 
-- Checkov (`terraform/insecure`): **42 failed / 43 passed**.
-- Trivy config (`terraform/insecure`): múltiples HIGH (S3 público, SG abiertos, IAM, ECR).
+- Checkov (`terraform/baseline`, código original preservado): **42 failed / 43 passed**.
+- Trivy config (`terraform/baseline`): múltiples HIGH (S3 público, SG abiertos, IAM, ECR).
 - Trivy fs secretos: **2** secretos (AWS key + GitHub PAT) en `ecs.tf`.
 - Trivy imagen insegura (`Dockerfile.insecure`, base `python:latest`, root): **3689 vulnerabilidades** (16 CRITICAL / 313 HIGH) + PAT incrustado.
 

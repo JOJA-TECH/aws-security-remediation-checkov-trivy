@@ -6,8 +6,9 @@
 # control, the technical reason, the risk, the compensating control, the
 # approver and the review date. See docs/correcciones.md for the full record.
 #
-# The insecure stack (terraform/insecure) is scanned WITHOUT this file so its
-# findings remain fully visible for the evidence report.
+# The original vulnerable code (terraform/baseline) is scanned WITHOUT this
+# file so its findings remain fully visible for the evidence report. The
+# remediated stack (terraform/insecure) uses checkov/remediated.yaml instead.
 
 skip-check:
   # --- TLS / HTTPS unavailable without a domain + ACM certificate ------------

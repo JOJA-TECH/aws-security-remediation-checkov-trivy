@@ -7,10 +7,11 @@ pre-descargada.
 | Tiempo | Bloques | Acción | Evidencia a mostrar |
 |--------|---------|--------|---------------------|
 | 0:00–1:00 | Intro | Enunciar objetivo y mostrar el diagrama Mermaid del README. | `README.md` §3–4 |
-| 1:00–3:00 | Insegura + Checkov | Mostrar 2–3 anti-patrones en `terraform/insecure` (SG 22 abierto, IAM `*/*`, ECR `MUTABLE`, S3 `public-read`). Ejecutar `checkov -d terraform/insecure --framework terraform`. | 42 FAILED; `docs/hallazgos-iniciales.md` |
-| 3:00–4:00 | Trivy config + secret | `trivy config terraform/insecure` y `trivy fs --scanners secret terraform/insecure`. | 23 misconfigs; 2 secretos (AWS key + GitHub PAT) |
+| 1:00–3:00 | Insegura + Checkov | Mostrar 2–3 anti-patrones en `terraform/baseline` (SG 22 abierto, IAM `*/*`, ECR `MUTABLE`, S3 `public-read`). Ejecutar `checkov -d terraform/baseline --framework terraform`. | 42 FAILED; `docs/hallazgos-iniciales.md` |
+| 3:00–4:00 | Trivy config + secret | `trivy config terraform/baseline` y `trivy fs --scanners secret terraform/baseline`. | 23 misconfigs; 2 secretos (AWS key + GitHub PAT) |
 | 4:00–5:00 | Trivy imagen insegura | `docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app` + `trivy image --severity CRITICAL,HIGH insecure-demo:ci`. | CVEs OS + DS-0002/DS-0001 |
-| 5:00–7:00 | Corregida + escáneres limpios | Mostrar `terraform/secure` (SG mínimo, no-root, digest, ECR inmutable, SSM, KMS). Ejecutar `checkov -d terraform/secure --config-file checkov/secure.yaml` y `trivy config terraform/secure --ignorefile trivy/secure.ignore`. | Checkov `Failed: 0`; Trivy exit 0; `docs/correcciones.md` |
+| 5:00–6:30 | Remediación in-place + escáneres | Mostrar los commits de corrección sobre `terraform/insecure` y ejecutar `checkov -d terraform/insecure --config-file checkov/remediated.yaml` y `trivy config terraform/insecure --ignorefile trivy/remediated.ignore`. | Checkov `Failed: 0`; Trivy exit 0; `docs/remediacion.md` |
+| 6:30–7:00 | Rediseño de referencia | Mostrar `terraform/secure` (subredes privadas + ALB + KMS + SSM) y su gate limpio. | Checkov `Failed: 0`; `docs/correcciones.md` |
 | 7:00–8:00 | Pipeline bloqueado | Abrir un PR que cambie `image_tag_mutability = "MUTABLE"` (o use `:latest`). | `Security` en rojo; `Deploy` no se ejecuta |
 | 8:00–9:00 | Pipeline exitoso + ECR | Revertir, merge a `main`. Mostrar `Security` verde y `Deploy` verde. `aws ecr describe-repositories ... imageTagMutability`. | `IMMUTABLE`; imagen con tag = SHA |
 | 9:00–9:30 | ECS + endpoint | `aws ecs describe-services ... --query 'services[0].{status,running,desired}'` y `scripts/verify.sh <health_url>`. | `ACTIVE`, 1/1; JSON `"status":"healthy"` |
@@ -27,14 +28,18 @@ pre-descargada.
 ## Comandos de la demo (copiar/pegar)
 
 ```bash
-# Insegura
-checkov -d terraform/insecure --framework terraform
-trivy config terraform/insecure
-trivy fs --scanners secret terraform/insecure
+# Insegura (baseline congelado)
+checkov -d terraform/baseline --framework terraform
+trivy config terraform/baseline
+trivy fs --scanners secret terraform/baseline
 docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app
 trivy image --severity CRITICAL,HIGH insecure-demo:ci
 
-# Corregida
+# Remediada in-place
+checkov -d terraform/insecure --framework terraform --config-file checkov/remediated.yaml
+trivy config --ignorefile trivy/remediated.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/insecure
+
+# Rediseño de referencia
 checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 trivy config --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
 docker build -t secure-demo:ci ./app

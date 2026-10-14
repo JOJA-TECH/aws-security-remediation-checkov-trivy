@@ -1,7 +1,8 @@
 # Hallazgos iniciales — infraestructura insegura
 
 Este documento registra los hallazgos obtenidos al analizar la carpeta
-`terraform/insecure/` y el `Dockerfile.insecure` con **Checkov** y **Trivy**.
+`terraform/baseline/` (código originalmente vulnerable, preservado tal cual) y el
+`Dockerfile.insecure` con **Checkov** y **Trivy**.
 Los resultados fueron reproducidos localmente; los números que aparecen aquí
 corresponden a las versiones indicadas.
 
@@ -9,17 +10,17 @@ corresponden a las versiones indicadas.
 
 ```bash
 # Checkov sobre la infraestructura insegura (todos los hallazgos visibles)
-checkov -d terraform/insecure --framework terraform
+checkov -d terraform/baseline --framework terraform
 
 # Checkov sobre la infraestructura corregida (debe quedar en 0)
 checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 
 # Trivy: misconfiguración de IaC
-trivy config terraform/insecure
+trivy config terraform/baseline
 trivy config terraform/secure --ignorefile trivy/secure.ignore
 
 # Trivy: secretos en el repositorio
-trivy fs --scanners secret,misconfig terraform/insecure
+trivy fs --scanners secret,misconfig terraform/baseline
 
 # Trivy: vulnerabilidades de la imagen construida
 docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app
@@ -41,13 +42,13 @@ Versiones usadas para generar esta evidencia:
 
 | Escáner | Objetivo | Hallazgos |
 |---------|----------|-----------|
-| Checkov `terraform` | `terraform/insecure` | **42 FAILED** (43 passed, 23 recursos) |
-| Trivy `config` | `terraform/insecure` | **23 misconfigurations** |
-| Trivy `secret` | `terraform/insecure/ecs.tf` | **2 secrets** (AWS key + GitHub PAT) |
+| Checkov `terraform` | `terraform/baseline` | **42 FAILED** (43 passed, 23 recursos) |
+| Trivy `config` | `terraform/baseline` | **23 misconfigurations** |
+| Trivy `secret` | `terraform/baseline/ecs.tf` | **2 secrets** (AWS key + GitHub PAT) |
 | Trivy `config`/`fs` | `app/Dockerfile.insecure` | **5 misconfigurations** (ver §5) |
 | Trivy `image` | `insecure-demo:ci` | Se ejecuta en el pipeline (ver §6) |
 
-## 3. Hallazgos de Checkov (`terraform/insecure`)
+## 3. Hallazgos de Checkov (`terraform/baseline`)
 
 42 controles fallidos. Se listan agrupados por configuración intencional.
 `—` indica que la versión de Checkov no expone severidad para ese control.
@@ -118,7 +119,7 @@ Versiones usadas para generar esta evidencia:
 | CKV2_AWS_62 | Event notifications | `aws_s3_bucket.artifacts` |
 | CKV2_AWS_65 | ACLs deshabilitadas | `aws_s3_bucket_ownership_controls.artifacts` |
 
-## 4. Hallazgos de Trivy `config` (`terraform/insecure`)
+## 4. Hallazgos de Trivy `config` (`terraform/baseline`)
 
 23 misconfiguraciones:
 
@@ -157,7 +158,7 @@ Versiones usadas para generar esta evidencia:
 
 ## 6. Secretos detectados (Trivy secret)
 
-`trivy fs --scanners secret terraform/insecure/ecs.tf` reporta **2 secretos**:
+`trivy fs --scanners secret terraform/baseline/ecs.tf` reporta **2 secretos**:
 
 | Regla | Severidad | Ubicación | Valor (ficticio) |
 |-------|-----------|-----------|------------------|

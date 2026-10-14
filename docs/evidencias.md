@@ -7,7 +7,7 @@ pantalla/URLs en el informe.
 ## 1. Ejecución de Checkov sobre la infraestructura insegura
 
 ```bash
-checkov -d terraform/insecure --framework terraform | tee docs/evidencias/checkov-insecure.txt
+checkov -d terraform/baseline --framework terraform | tee docs/evidencias/checkov-insecure.txt
 ```
 - **Esperado:** 42 controles fallidos (43 passed). Ver `docs/hallazgos-iniciales.md` §3.
 - **Captura:** resumen final de Checkov y tabla de controles.
@@ -15,8 +15,8 @@ checkov -d terraform/insecure --framework terraform | tee docs/evidencias/checko
 ## 2. Ejecución de Trivy config / secret sobre la infraestructura insegura
 
 ```bash
-trivy config terraform/insecure | tee docs/evidencias/trivy-config-insecure.txt
-trivy fs --scanners secret terraform/insecure | tee docs/evidencias/trivy-secret-insecure.txt
+trivy config terraform/baseline | tee docs/evidencias/trivy-config-insecure.txt
+trivy fs --scanners secret terraform/baseline | tee docs/evidencias/trivy-secret-insecure.txt
 ```
 - **Esperado:** 23 misconfiguraciones; 2 secretos (`aws-access-key-id` y `github-pat`).
 
@@ -37,9 +37,9 @@ trivy image --severity CRITICAL,HIGH insecure-demo:ci | tee docs/evidencias/triv
 
 ## 5. Comparación inseguro vs corregido
 
-- **Entregable:** diff entre `terraform/insecure` y `terraform/secure`.
+- **Entregable:** diff entre `terraform/baseline` y `terraform/secure`.
   ```bash
-  diff -ru terraform/insecure terraform/secure | tee docs/evidencias/diff-insecure-secure.txt
+  diff -ru terraform/baseline terraform/secure | tee docs/evidencias/diff-insecure-secure.txt
   ```
 - **Captura:** tabla comparativa de `docs/correcciones.md`.
 
@@ -55,7 +55,7 @@ checkov -d terraform/secure --framework terraform --config-file checkov/secure.y
 
 ```bash
 trivy config --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
-trivy fs --scanners secret,misconfig --skip-dirs terraform/insecure --skip-files app/Dockerfile.insecure \
+trivy fs --scanners secret,misconfig --skip-dirs terraform/baseline --skip-files app/Dockerfile.insecure \
   --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 .
 docker build -t secure-demo:ci ./app
 trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 secure-demo:ci

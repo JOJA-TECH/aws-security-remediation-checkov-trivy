@@ -10,10 +10,14 @@ versión corregida con un pipeline de **GitHub Actions** autenticado en AWS por
 
 ## 1. Descripción
 
-El repositorio contiene dos versiones de la misma arquitectura:
+El repositorio contiene la misma arquitectura en tres estados:
 
-- `terraform/insecure/` — versión con problemas intencionales (**uso académico**).
-- `terraform/secure/` — versión corregida, la que se despliega.
+- `terraform/baseline/` — código original con problemas intencionales, **congelado** como evidencia "antes" (**uso académico**).
+- `terraform/insecure/` — ese mismo stack **remediado in-place** mediante commits; es el que se despliega en la demostración.
+- `terraform/secure/` — **rediseño de referencia** (subredes privadas + ALB + KMS + SSM) que representa el estado final de producción.
+
+El proceso de corrección (hallazgo → commit) está en `docs/remediacion.md` y el
+informe global en `docs/informe-final.md`.
 
 La aplicación es un servidor HTTP mínimo (librería estándar de Python) que
 expone `/`, `/health` y `/version`.
@@ -185,10 +189,13 @@ docker run --rm -p 8080:8080 secure-demo:local
 ## 12. Ejecución de Checkov
 
 ```bash
-# Insegura: muestra todos los hallazgos
-checkov -d terraform/insecure --framework terraform
+# Baseline (vulnerable): muestra todos los hallazgos
+checkov -d terraform/baseline --framework terraform
 
-# Corregida: debe quedar en 0 (usa los skips justificados de checkov/secure.yaml)
+# Remediada in-place: debe quedar en 0 (usa checkov/remediated.yaml)
+checkov -d terraform/insecure --framework terraform --config-file checkov/remediated.yaml
+
+# Rediseño de referencia: debe quedar en 0 (usa checkov/secure.yaml)
 checkov -d terraform/secure --framework terraform --config-file checkov/secure.yaml
 ```
 
@@ -196,11 +203,12 @@ checkov -d terraform/secure --framework terraform --config-file checkov/secure.y
 
 ```bash
 # Misconfiguración de IaC
-trivy config terraform/insecure
+trivy config terraform/baseline
+trivy config terraform/insecure --ignorefile trivy/remediated.ignore
 trivy config terraform/secure --ignorefile trivy/secure.ignore
 
 # Secretos y misconfiguración en el repositorio
-trivy fs --scanners secret,misconfig terraform/insecure
+trivy fs --scanners secret,misconfig terraform/baseline
 trivy fs .
 
 # Imagen
@@ -216,10 +224,10 @@ Atajo: `scripts/scan.sh` ejecuta todo y guarda los resultados en `reports/`.
 ## 14. Despliegue inseguro controlado
 
 El despliegue inseguro es **solo con fines demostrativos** y bajo tu
-responsabilidad. Se recomienda:
+responsabilidad. Usa el código congelado en `terraform/baseline/`:
 
 ```bash
-cd terraform/insecure
+cd terraform/baseline
 terraform init
 terraform plan
 terraform apply      # crea recursos deliberadamente inseguros
@@ -234,11 +242,12 @@ terraform destroy
 
 Ver `docs/hallazgos-iniciales.md`. Resumen: **42** controles de Checkov,
 **23** misconfiguraciones de Trivy config y **2** secretos detectados por Trivy
-en `terraform/insecure/`.
+en `terraform/baseline/`.
 
 ## 16. Correcciones aplicadas
 
-Ver `docs/correcciones.md` (8 correcciones C1–C8 + excepciones). Resumen:
+Ver `docs/remediacion.md` (correcciones aplicadas in-place con su commit) y
+`docs/correcciones.md` (8 correcciones C1–C8 del rediseño + excepciones). Resumen:
 
 1. Grupos de seguridad mínimos; app solo accesible desde el ALB.
 2. Sin puertos administrativos abiertos (acceso vía SSM/ECS Exec).
@@ -283,9 +292,13 @@ Respuesta esperada de `/health`:
 `security.yml` falla (y por tanto `deploy.yml` no se ejecuta) cuando:
 
 - `terraform fmt -check` o `terraform validate` fallan.
-- **Checkov** reporta **cualquier** control fallido en `terraform/secure`
-  (las excepciones deben ser skips específicos y justificados en
-  `checkov/secure.yaml`; nunca `soft-fail` global).
+- **Checkov** reporta **cualquier** control fallido en `terraform/insecure`
+  (gate `checkov/remediated.yaml`) o en `terraform/secure`
+  (`checkov/secure.yaml`). Las excepciones deben ser skips específicos y
+  justificados; nunca `soft-fail` global.
+- **Trivy config** detecta `CRITICAL`/`HIGH` en `terraform/insecure` o
+  `terraform/secure` (con las excepciones `trivy/remediated.ignore` /
+  `trivy/secure.ignore`).
 - **Trivy image** detecta `CRITICAL`/`HIGH` **con fix** (política
   `--ignore-unfixed`, justificada en `docs/correcciones.md`).
 - **Trivy fs** detecta secretos o misconfiguraciones `CRITICAL`/`HIGH` en las
@@ -297,6 +310,10 @@ Ver `docs/evidencias.md` (15 puntos con comandos exactos y qué resultado se
 espera). Destacan: Checkov/Trivy insecure y secure, comparación de configs,
 pipeline bloqueado y exitoso, imagen inmutable en ECR, ECS en ejecución, prueba
 de `/health`, `plan/apply/destroy`.
+
+Ejecuciones reales registradas:
+`docs/evidencias/insegura-desplegada-2026-10-14.md` (stack inseguro desplegado)
+y `docs/evidencias/remediada-desplegada-2026-10-14.md` (stack remediado).
 
 ## 21. Destruir la infraestructura
 
@@ -323,8 +340,9 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 - **NAT Gateway único:** un solo AZ para abaratar; en producción, uno por AZ.
 - **Estado con secretos:** los `SecureString` generados quedan en el state;
   usar backend cifrado y control de acceso (ya provisto).
-- **Imagen base:** fijada por tag `python:3.12.6-slim-bookworm`; considerar
-  digest para reproducibilidad total.
+- **Imagen base:** fijada por tag **y digest**
+  (`python:3.12-slim-bookworm@sha256:34386ef0...`) y con `apt-get upgrade` en el
+  build, para reproducibilidad y para eliminar CVEs del sistema operativo.
 - **Firma de imágenes:** añadir Cosign/Notation y SBOM (Trivy `--format cyclonedx`).
 
 ## 23. Advertencias de costos y seguridad
@@ -363,8 +381,9 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 │   ├── requirements.txt
 │   └── .dockerignore
 ├── terraform/
-│   ├── insecure/              # infraestructura insegura (académica)
-│   └── secure/                # infraestructura corregida
+│   ├── baseline/              # infraestructura insegura original (congelada)
+│   ├── insecure/              # ese stack remediado in-place por commits
+│   └── secure/                # rediseño de referencia (privado + ALB)
 ├── bootstrap/                 # OIDC + rol de GitHub Actions + backend de estado
 ├── .github/workflows/
 │   ├── security.yml           # fmt, validate, Checkov, Trivy
@@ -375,13 +394,21 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 │   └── verify.sh
 ├── docs/
 │   ├── hallazgos-iniciales.md
-│   ├── correcciones.md
+│   ├── remediacion.md         # correcciones in-place (hallazgo -> commit)
+│   ├── correcciones.md        # correcciones del rediseño de referencia
+│   ├── informe-final.md       # informe global del trabajo
 │   ├── evidencias.md
 │   ├── demo-guion.md
-│   └── checklist.md
+│   ├── checklist.md
+│   └── evidencias/
+│       ├── ejecucion-2026-10-14.md
+│       ├── insegura-desplegada-2026-10-14.md
+│       └── remediada-desplegada-2026-10-14.md
 ├── checkov/
+│   ├── remediated.yaml        # skips justificados (stack remediado in-place)
 │   └── secure.yaml            # skips justificados para la infra segura
 ├── trivy/
+│   ├── remediated.ignore      # excepciones justificadas (stack remediado)
 │   └── secure.ignore          # excepciones justificadas de Trivy
 ├── docker-compose.yml
 ├── .gitignore

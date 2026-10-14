@@ -18,14 +18,16 @@ insegura — Checkov y Trivy”. `✅` cumplido, `📄` evidencia.
 
 | Problema intencional | Estado | Evidencia |
 |----------------------|--------|-----------|
-| SG con puerto admin abierto a 0.0.0.0/0 | ✅ | `terraform/insecure/security.tf` (22/80/8080) |
+| SG con puerto admin abierto a 0.0.0.0/0 | ✅ | `terraform/baseline/security.tf` (22/80/8080) |
 | Contenedor como root | ✅ | `Dockerfile.insecure`, `ecs.tf` (`privileged`) |
 | Etiqueta mutable `latest` | ✅ | `variables.tf` + `ecs.tf` |
 | IAM excesivamente permisiva (`*`) | ✅ | `iam.tf` (AdministratorAccess + `*/*`) |
 | Secreto visible en env/config | ✅ | `ecs.tf`, `Dockerfile.insecure` |
 | ECR con etiquetas mutables | ✅ | `ecr.tf` (`MUTABLE`) |
 | Almacenamiento público (S3) | ✅ | `storage.tf` (`public-read`, PAB off) |
-| Separación insecure/secure | ✅ | `terraform/insecure`, `terraform/secure` |
+| Baseline vulnerable preservado | ✅ | `terraform/baseline` (código original) |
+| Remediación in-place por commits | ✅ | `terraform/insecure` (endurecido), `docs/remediacion.md` |
+| Rediseño de referencia | ✅ | `terraform/secure` |
 
 ## Fase 2 — Análisis
 
@@ -33,7 +35,7 @@ insegura — Checkov y Trivy”. `✅` cumplido, `📄` evidencia.
 |-----------|--------|-----------|
 | Checkov sobre Terraform | ✅ | `docs/hallazgos-iniciales.md` (42) |
 | Trivy imagen + vulnerabilidades | ✅ | `security.yml`, `scripts/scan.sh` |
-| Trivy fs (secretos) | ✅ | 2 secretos en `terraform/insecure/ecs.tf` |
+| Trivy fs (secretos) | ✅ | 2 secretos en `terraform/baseline/ecs.tf` |
 | Comandos exactos | ✅ | README §12–13, `docs/*` |
 
 ## Fase 3 — Correcciones (≥ 4; se aplican 8)
@@ -104,11 +106,13 @@ insegura — Checkov y Trivy”. `✅` cumplido, `📄` evidencia.
 
 | Comprobación | Resultado |
 |--------------|-----------|
-| `terraform fmt -check -recursive` (insecure, secure, bootstrap) | ✅ sin cambios |
-| `terraform validate` (insecure, secure, bootstrap) | ✅ Success |
-| `checkov -d terraform/secure --config-file checkov/secure.yaml` | ✅ 0 failed (158 passed) |
-| `checkov -d terraform/insecure` | ✅ 42 failed (evidencia) |
+| `terraform fmt -check -recursive` (baseline, remediated, secure, bootstrap) | ✅ sin cambios |
+| `terraform validate` (baseline, remediated, secure, bootstrap) | ✅ Success |
+| `checkov -d terraform/secure --config-file checkov/secure.yaml` | ✅ 0 failed |
+| `checkov -d terraform/insecure --config-file checkov/remediated.yaml` | ✅ 0 failed (124 passed) |
+| `checkov -d terraform/baseline` | ✅ 42 failed (evidencia) |
 | `trivy config terraform/secure --ignorefile trivy/secure.ignore` | ✅ exit 0 |
-| `trivy config terraform/insecure` | ✅ 23 misconfigs |
-| `trivy fs --scanners secret terraform/insecure` | ✅ 2 secretos |
+| `trivy config terraform/insecure --ignorefile trivy/remediated.ignore` | ✅ exit 0 |
+| `trivy config terraform/baseline` | ✅ 23 misconfigs (evidencia) |
+| `trivy fs --scanners secret terraform/baseline` | ✅ 2 secretos (evidencia) |
 | `trivy fs` (gate sobre rutas seguras) | ✅ exit 0 |
