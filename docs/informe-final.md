@@ -78,8 +78,8 @@ se demuestra reescaneando. Ver el mapeo completo hallazgo→commit en
 
 ## 6. Después (stack remediado)
 
-Desplegado y verificado en vivo: `http://13.223.96.23:8080/health` →
-`{"version":"40d4558","commit":"40d4558","status":"healthy"}`, servicio ECS
+Desplegado y verificado en vivo: `http://184.192.101.2:8080/health` →
+`{"version":"6bad1a6","commit":"6bad1a6","status":"healthy"}`, servicio ECS
 1/1 `HEALTHY`. Escáneres:
 
 | Escáner | Antes | Después |

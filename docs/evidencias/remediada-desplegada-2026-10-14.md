@@ -5,20 +5,24 @@ Registro del despliegue **después** de aplicar las correcciones in-place sobre
 `docs/evidencias/insegura-desplegada-2026-10-14.md` (el "antes").
 
 - Cuenta: `948218213402` — Región: `us-east-1`
-- Imagen: `948218213402.dkr.ecr.us-east-1.amazonaws.com/insecure-demo-dev-app@sha256:ff257801b36ab589a4409ff66d60b77c64f58ef9a77a47160cfb4303228efe7c`
-- Task definition: `insecure-demo-dev-app:2`
+- Imagen: `948218213402.dkr.ecr.us-east-1.amazonaws.com/insecure-demo-dev-app@sha256:f71f5dd82ace7f3bde4898a55998042506624dbec01ef059e8136e32aaa50f2d`
+- Task definition: `insecure-demo-dev-app:3`
 - Servicio: `insecure-demo-dev-service` (1/1, `HEALTHY`)
-- IP pública del task: `13.223.96.23` (ENI `eni-03b522d9b7d50c1dc`)
-- Security group: `sg-0721379f35cb0f6da`
+- IP pública del task: `184.192.101.2` (ENI `eni-0175fe1c9cd4231a3`)
+- Security group: `sg-07bcdba1adf05d13c`
+
+> Nota: la infraestructura se destruyó y redesplegó (2026-10-14); los
+> identificadores anteriores eran `sha256:ff2578...`, task def `:2`, IP
+> `13.223.96.23`, SG `sg-0721379f35cb0f6da`.
 
 ## 1. Aplicación en ejecución
 
 ```
-$ curl -s http://13.223.96.23:8080/health
-{"app": "insecure-infra-demo", "message": "ok", "version": "40d4558", "commit": "40d4558", "status": "healthy"}
+$ curl -s http://184.192.101.2:8080/health
+{"app": "insecure-infra-demo", "message": "ok", "version": "6bad1a6", "commit": "6bad1a6", "status": "healthy"}
 
-$ curl -s http://13.223.96.23:8080/
-{"app": "insecure-infra-demo", "message": "La aplicacion esta funcionando correctamente", "version": "40d4558", "commit": "40d4558"}
+$ curl -s http://184.192.101.2:8080/
+{"app": "insecure-infra-demo", "message": "La aplicacion esta funcionando correctamente", "version": "6bad1a6", "commit": "6bad1a6"}
 ```
 
 `version`/`commit` ya no es `latest`/`unknown` sino el SHA inmutable de la imagen.
@@ -27,11 +31,11 @@ $ curl -s http://13.223.96.23:8080/
 
 | Hallazgo original | Control remediado | Evidencia |
 |-------------------|-------------------|-----------|
-| SG con 22 y 80 abiertos al mundo | SG `sg-0721379f35cb0f6da`: ingreso **solo 8080** (descrito); egreso a **443** y **DNS 53 (VPC)** | `describe-security-groups` |
+| SG con 22 y 80 abiertos al mundo | SG `sg-07bcdba1adf05d13c`: ingreso **solo 8080** (descrito); egreso a **443** y **DNS 53 (VPC)** | `describe-security-groups` |
 | Subredes con IP pública automática | `map_public_ip_on_launch=false`; el task publica IP de forma explícita | `describe-subnets` |
-| Sin logs de flujo | VPC Flow Logs `fl-072ae6afd2f9318d4` **ACTIVE** | `describe-flow-logs` |
+| Sin logs de flujo | VPC Flow Logs `fl-086b045232ecfe391` **ACTIVE** | `describe-flow-logs` |
 | Log group sin retención/KMS | `/ecs/insecure-demo-dev-app` retención **365** + KMS | `describe-log-groups` |
-| Sin cifrado (secrets/ECR/logs) | KMS `arn:...:key/1009951b-...` con **rotación anual** | `get-key-rotation-status` |
+| Sin cifrado (secrets/ECR/logs) | KMS `arn:...:key/50dc5774-...` con **rotación anual** | `get-key-rotation-status` |
 | Rol de tarea con `AdministratorAccess` + `Action:*` | Rol de tarea **sin políticas**; rol de ejecución de mínimo privilegio | `list-role-policies` / `get-role-policy` |
 | Secretos en variables de entorno | `DB_PASSWORD`/`API_TOKEN` como SSM **SecureString** e inyectados por `secrets` | `describe-task-definition` |
 | S3 con ACL `AllUsers` y política pública | S3: Block Public Access total, cifrado **KMS**, versionado, lifecycle, notificaciones; ACL privada | `get-public-access-block` / `get-bucket-encryption` / `get-bucket-acl` |
@@ -47,7 +51,7 @@ $ curl -s http://13.223.96.23:8080/
  {"Sid":"EcrPull","Action":["ecr:GetDownloadUrlForLayer","ecr:BatchGetImage","ecr:BatchCheckLayerAvailability"],"Resource":"...:repository/insecure-demo-dev-app"},
  {"Sid":"LogsWrite","Action":["logs:PutLogEvents","logs:CreateLogStream"],"Resource":"...:log-group:/ecs/insecure-demo-dev-app:*"},
  {"Sid":"ReadAppSecrets","Action":["ssm:GetParameters","ssm:GetParameter"],"Resource":["...:parameter/insecure-demo-dev/db/password","...:parameter/insecure-demo-dev/api/token"]},
- {"Sid":"DecryptSecrets","Action":"kms:Decrypt","Resource":"...:key/1009951b-..."}
+ {"Sid":"DecryptSecrets","Action":"kms:Decrypt","Resource":"...:key/50dc5774-..."}
 ]}
 ```
 
@@ -58,7 +62,7 @@ $ curl -s http://13.223.96.23:8080/
 | Checkov | `terraform/insecure` | **124 passed / 0 failed** (3 hallazgos excepcionados en `checkov/remediated.yaml`) |
 | Trivy config | `terraform/insecure` (CRITICAL,HIGH) | **0**, exit 0 |
 | Trivy image | imagen corregida (CRITICAL,HIGH, `--ignore-unfixed`) | **0** |
-| ECR scan-on-push | imagen `40d4558` | 6 HIGH / 2 MEDIUM / 2 LOW — **todos sin parche upstream** (ver §4) |
+| ECR scan-on-push | imagen `6bad1a6` | sin parche upstream → `--ignore-unfixed` (ver §4) |
 | Trivy secret | repo | **0** (los secretos hardcodeados del baseline desaparecieron) |
 
 ## 4. Nota sobre la imagen base
