@@ -82,6 +82,24 @@ data "aws_iam_policy_document" "github_permissions" {
     resources = [local.lock_table_arn]
   }
 
+  # KMS data-plane access to the state key. The S3 state bucket and the
+  # DynamoDB lock table are both encrypted with this key, so the pipeline
+  # needs Decrypt/GenerateDataKey (and CreateGrant so DynamoDB can use it).
+  statement {
+    sid    = "TerraformStateKms"
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+      "kms:DescribeKey",
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant"
+    ]
+    resources = [aws_kms_key.tfstate.arn]
+  }
+
   # --- Application buckets (scoped by project prefix) -----------------------
   statement {
     sid    = "AppBuckets"
@@ -96,7 +114,12 @@ data "aws_iam_policy_document" "github_permissions" {
       "s3:PutObject",
       "s3:DeleteObject",
       "s3:GetLifecycleConfiguration",
-      "s3:PutLifecycleConfiguration"
+      "s3:PutLifecycleConfiguration",
+      "s3:GetAccelerateConfiguration",
+      "s3:PutAccelerateConfiguration",
+      "s3:GetEncryptionConfiguration",
+      "s3:PutEncryptionConfiguration",
+      "s3:GetReplicationConfiguration"
     ]
     resources = [
       "arn:aws:s3:::secure-demo-*",
@@ -123,6 +146,11 @@ data "aws_iam_policy_document" "github_permissions" {
       "ecr:ListImages",
       "ecr:TagResource",
       "ecr:ListTagsForResource",
+      "ecr:GetRepositoryPolicy",
+      "ecr:SetRepositoryPolicy",
+      "ecr:DeleteRepositoryPolicy",
+      "ecr:PutImageTagMutability",
+      "ecr:PutImageScanningConfiguration",
       "ecr:GetLifecyclePolicy",
       "ecr:PutLifecyclePolicy",
       "ecr:DeleteLifecyclePolicy",
@@ -186,6 +214,7 @@ data "aws_iam_policy_document" "github_permissions" {
       "elasticloadbalancing:CreateListener",
       "elasticloadbalancing:DeleteListener",
       "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeListenerAttributes",
       "elasticloadbalancing:ModifyListener",
       "elasticloadbalancing:DescribeTargetHealth",
       "elasticloadbalancing:AddTags",
@@ -243,7 +272,12 @@ data "aws_iam_policy_document" "github_permissions" {
       "ec2:DescribeAvailabilityZones",
       "ec2:DescribeNetworkInterfaces",
       "ec2:DescribeVpcAttribute",
-      "ec2:DescribeNetworkAcls"
+      "ec2:DescribeNetworkAcls",
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeDhcpOptions",
+      "ec2:DescribeVpcClassicLink",
+      "ec2:DescribeVpcClassicLinkDnsSupport",
+      "ec2:DescribeVpcPeeringConnections"
     ]
     resources = ["*"]
   }
@@ -255,6 +289,9 @@ data "aws_iam_policy_document" "github_permissions" {
     actions = [
       "kms:CreateKey",
       "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
       "kms:GetKeyPolicy",
       "kms:PutKeyPolicy",
       "kms:EnableKeyRotation",
@@ -265,6 +302,10 @@ data "aws_iam_policy_document" "github_permissions" {
       "kms:DeleteAlias",
       "kms:UpdateAlias",
       "kms:ListAliases",
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant",
+      "kms:RetireGrant",
       "kms:TagResource",
       "kms:UntagResource",
       "kms:ListResourceTags"
@@ -343,7 +384,11 @@ data "aws_iam_policy_document" "github_permissions" {
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["ecs-tasks.amazonaws.com"]
+      values = [
+        "ecs-tasks.amazonaws.com",
+        "vpc-flow-logs.amazonaws.com",
+        "delivery.logs.amazonaws.com"
+      ]
     }
   }
 

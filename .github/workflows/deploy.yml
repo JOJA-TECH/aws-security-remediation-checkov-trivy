@@ -81,14 +81,16 @@ jobs:
             -var "region=${AWS_REGION}" \
             -var "image_uri=placeholder@sha256:$(printf '0%.0s' $(seq 1 64))"
 
-      - name: Build and push image (tagged with commit SHA)
+      - name: Build and push image (tagged with commit SHA + run)
         id: build
         env:
           ECR_REPOSITORY: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ env.ENVIRONMENT }}-app
         run: |
-          IMAGE_TAG="${GITHUB_SHA}"
+          # The ECR repository is IMMUTABLE, so the tag must be unique per run
+          # (re-deploying the same commit would otherwise collide).
+          IMAGE_TAG="${GITHUB_SHA}-${GITHUB_RUN_NUMBER}"
           docker build \
-            --build-arg APP_VERSION="${IMAGE_TAG}" \
+            --build-arg APP_VERSION="${GITHUB_SHA}" \
             --build-arg GIT_COMMIT="${GITHUB_SHA}" \
             -t "${ECR_REPOSITORY}:${IMAGE_TAG}" ./app
           docker push "${ECR_REPOSITORY}:${IMAGE_TAG}"
