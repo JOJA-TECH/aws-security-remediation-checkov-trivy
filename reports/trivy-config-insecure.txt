@@ -1,0 +1,540 @@
+
+Report Summary
+
+┌─────────────┬───────────┬───────────────────┐
+│   Target    │   Type    │ Misconfigurations │
+├─────────────┼───────────┼───────────────────┤
+│ .           │ terraform │         0         │
+├─────────────┼───────────┼───────────────────┤
+│ ecr.tf      │ terraform │         4         │
+├─────────────┼───────────┼───────────────────┤
+│ main.tf     │ terraform │         2         │
+├─────────────┼───────────┼───────────────────┤
+│ network.tf  │ terraform │         3         │
+├─────────────┼───────────┼───────────────────┤
+│ security.tf │ terraform │         6         │
+├─────────────┼───────────┼───────────────────┤
+│ storage.tf  │ terraform │         8         │
+└─────────────┴───────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+ecr.tf (terraform)
+==================
+Tests: 4 (SUCCESSES: 0, FAILURES: 4)
+Failures: 4 (UNKNOWN: 0, LOW: 1, MEDIUM: 0, HIGH: 3, CRITICAL: 0)
+
+AWS-0030 (HIGH): Image scanning is not enabled
+════════════════════════════════════════
+Repository image scans should be enabled to ensure vulnerable software can be discovered and remediated as soon as possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0030
+────────────────────────────────────────
+ ecr.tf:16
+   via ecr.tf:15-17 (image_scanning_configuration)
+    via ecr.tf:11-26 (aws_ecr_repository.app)
+────────────────────────────────────────
+  11   resource "aws_ecr_repository" "app" {
+  ..   
+  16 [     scan_on_push = false
+  ..   
+  26   }
+────────────────────────────────────────
+
+
+AWS-0031 (HIGH): Repository tags are mutable.
+════════════════════════════════════════
+ECR images should be set to IMMUTABLE to prevent code injection through image mutation.
+This can be done by setting <code>image_tag_mutability</code> to <code>IMMUTABLE</code>
+
+
+See https://avd.aquasec.com/misconfig/aws-0031
+────────────────────────────────────────
+ ecr.tf:13
+   via ecr.tf:11-26 (aws_ecr_repository.app)
+────────────────────────────────────────
+  11   resource "aws_ecr_repository" "app" {
+  ..   
+  13 [   image_tag_mutability = "MUTABLE"
+  ..   
+  26   }
+────────────────────────────────────────
+
+
+AWS-0032 (HIGH): Policy provides public access to the ECR repository.
+════════════════════════════════════════
+Allowing public access to the ECR repository risks leaking sensitive of abusable information
+
+
+See https://avd.aquasec.com/misconfig/aws-0032
+────────────────────────────────────────
+ ecr.tf:31-47
+   via ecr.tf:28-48 (aws_ecr_repository_policy.app_public)
+────────────────────────────────────────
+  28   resource "aws_ecr_repository_policy" "app_public" {
+  29     repository = aws_ecr_repository.app.name
+  30   
+  31 ┌   policy = jsonencode({
+  32 │     Version = "2012-10-17"
+  33 │     Statement = [
+  34 │       {
+  35 │         Sid    = "AllowPullAnyPrincipal"
+  36 └         Effect = "Allow"
+  ..   
+────────────────────────────────────────
+
+
+AWS-0033 (LOW): Repository is not encrypted using KMS.
+════════════════════════════════════════
+Images in the ECR repository are encrypted by default using AWS managed encryption keys. To increase control of the encryption and control the management of factors like key rotation, use a Customer Managed Key.
+
+
+See https://avd.aquasec.com/misconfig/aws-0033
+────────────────────────────────────────
+ ecr.tf:20
+   via ecr.tf:19-21 (encryption_configuration)
+    via ecr.tf:11-26 (aws_ecr_repository.app)
+────────────────────────────────────────
+  11   resource "aws_ecr_repository" "app" {
+  ..   
+  20 [     encryption_type = "AES256"
+  ..   
+  26   }
+────────────────────────────────────────
+
+
+
+main.tf (terraform)
+===================
+Tests: 2 (SUCCESSES: 0, FAILURES: 2)
+Failures: 2 (UNKNOWN: 0, LOW: 2, MEDIUM: 0, HIGH: 0, CRITICAL: 0)
+
+AWS-0017 (LOW): Log group is not encrypted.
+════════════════════════════════════════
+CloudWatch log groups are encrypted by default, however, to get the full benefit of controlling key rotation and other KMS aspects a KMS CMK should be used.
+
+
+See https://avd.aquasec.com/misconfig/aws-0017
+────────────────────────────────────────
+ main.tf:20-28
+────────────────────────────────────────
+  20 ┌ resource "aws_cloudwatch_log_group" "app" {
+  21 │   name = "/ecs/${local.name}-app"
+  22 │ 
+  23 │   # INSECURE: no kms_key_id and no retention_in_days.
+  24 │ 
+  25 │   tags = {
+  26 │     Name = "${local.name}-logs"
+  27 │   }
+  28 └ }
+────────────────────────────────────────
+
+
+AWS-0034 (LOW): Cluster does not have container insights enabled.
+════════════════════════════════════════
+Cloudwatch Container Insights provide more metrics and logs for container based applications and micro services.
+
+
+See https://avd.aquasec.com/misconfig/aws-0034
+────────────────────────────────────────
+ main.tf:10-18
+────────────────────────────────────────
+  10 ┌ resource "aws_ecs_cluster" "main" {
+  11 │   name = local.name
+  12 │ 
+  13 │   # INSECURE: container insights not enabled.
+  14 │ 
+  15 │   tags = {
+  16 │     Name = "${local.name}-cluster"
+  17 │   }
+  18 └ }
+────────────────────────────────────────
+
+
+
+network.tf (terraform)
+======================
+Tests: 3 (SUCCESSES: 0, FAILURES: 3)
+Failures: 3 (UNKNOWN: 0, LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 0)
+
+AWS-0164 (HIGH): Subnet associates public IP address.
+════════════════════════════════════════
+You should limit the provision of public IP addresses for resources. Resources should not be exposed on the public internet, but should have access limited to consumers required for the function of your application.
+
+
+See https://avd.aquasec.com/misconfig/aws-0164
+────────────────────────────────────────
+ network.tf:34
+   via network.tf:28-39 (aws_subnet.public[0])
+────────────────────────────────────────
+  28   resource "aws_subnet" "public" {
+  ..   
+  34 [   map_public_ip_on_launch = true
+  ..   
+  39   }
+────────────────────────────────────────
+
+
+AWS-0164 (HIGH): Subnet associates public IP address.
+════════════════════════════════════════
+You should limit the provision of public IP addresses for resources. Resources should not be exposed on the public internet, but should have access limited to consumers required for the function of your application.
+
+
+See https://avd.aquasec.com/misconfig/aws-0164
+────────────────────────────────────────
+ network.tf:34
+   via network.tf:28-39 (aws_subnet.public[1])
+────────────────────────────────────────
+  28   resource "aws_subnet" "public" {
+  ..   
+  34 [   map_public_ip_on_launch = true
+  ..   
+  39   }
+────────────────────────────────────────
+
+
+AWS-0178 (MEDIUM): VPC does not have VPC Flow Logs enabled.
+════════════════════════════════════════
+VPC Flow Logs provide visibility into network traffic that traverses the VPC and can be used to detect anomalous traffic or insight during security workflows.
+
+
+See https://avd.aquasec.com/misconfig/aws-0178
+────────────────────────────────────────
+ network.tf:10-18
+────────────────────────────────────────
+  10 ┌ resource "aws_vpc" "main" {
+  11 │   cidr_block           = var.vpc_cidr
+  12 │   enable_dns_support   = true
+  13 │   enable_dns_hostnames = true
+  14 │ 
+  15 │   tags = {
+  16 │     Name = "${local.name}-vpc"
+  17 │   }
+  18 └ }
+────────────────────────────────────────
+
+
+
+security.tf (terraform)
+=======================
+Tests: 6 (SUCCESSES: 0, FAILURES: 6)
+Failures: 6 (UNKNOWN: 0, LOW: 4, MEDIUM: 0, HIGH: 1, CRITICAL: 1)
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ security.tf:44
+   via security.tf:40-45 (egress)
+    via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  44 [     cidr_blocks = ["0.0.0.0/0"]
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+AWS-0107 (HIGH): Security group rule allows unrestricted ingress from any IP address.
+════════════════════════════════════════
+Security groups provide stateful filtering of ingress and egress network traffic to AWS
+resources. It is recommended that no security group allows unrestricted ingress access to
+remote server administration ports, such as SSH to port 22 and RDP to port 3389.
+
+
+See https://avd.aquasec.com/misconfig/aws-0107
+────────────────────────────────────────
+ security.tf:22
+   via security.tf:18-23 (ingress)
+    via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  22 [     cidr_blocks = ["0.0.0.0/0"]
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+AWS-0124 (LOW): Security group rule does not have a description.
+════════════════════════════════════════
+Security group rules should include a description for auditing purposes.
+
+Simplifies auditing, debugging, and managing security groups.
+
+
+See https://avd.aquasec.com/misconfig/aws-0124
+────────────────────────────────────────
+ security.tf:18-23
+   via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  18 ┌   ingress {
+  19 │     from_port   = 22
+  20 │     to_port     = 22
+  21 │     protocol    = "tcp"
+  22 │     cidr_blocks = ["0.0.0.0/0"]
+  23 └   }
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+AWS-0124 (LOW): Security group rule does not have a description.
+════════════════════════════════════════
+Security group rules should include a description for auditing purposes.
+
+Simplifies auditing, debugging, and managing security groups.
+
+
+See https://avd.aquasec.com/misconfig/aws-0124
+────────────────────────────────────────
+ security.tf:25-30
+   via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  25 ┌   ingress {
+  26 │     from_port   = 80
+  27 │     to_port     = 80
+  28 │     protocol    = "tcp"
+  29 │     cidr_blocks = ["0.0.0.0/0"]
+  30 └   }
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+AWS-0124 (LOW): Security group rule does not have a description.
+════════════════════════════════════════
+Security group rules should include a description for auditing purposes.
+
+Simplifies auditing, debugging, and managing security groups.
+
+
+See https://avd.aquasec.com/misconfig/aws-0124
+────────────────────────────────────────
+ security.tf:32-37
+   via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  32 ┌   ingress {
+  33 │     from_port   = var.container_port
+  34 │     to_port     = var.container_port
+  35 │     protocol    = "tcp"
+  36 │     cidr_blocks = ["0.0.0.0/0"]
+  37 └   }
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+AWS-0124 (LOW): Security group rule does not have a description.
+════════════════════════════════════════
+Security group rules should include a description for auditing purposes.
+
+Simplifies auditing, debugging, and managing security groups.
+
+
+See https://avd.aquasec.com/misconfig/aws-0124
+────────────────────────────────────────
+ security.tf:40-45
+   via security.tf:12-50 (aws_security_group.app)
+────────────────────────────────────────
+  12   resource "aws_security_group" "app" {
+  ..   
+  40 ┌   egress {
+  41 │     from_port   = 0
+  42 │     to_port     = 0
+  43 │     protocol    = "-1"
+  44 │     cidr_blocks = ["0.0.0.0/0"]
+  45 └   }
+  ..   
+  50   }
+────────────────────────────────────────
+
+
+
+storage.tf (terraform)
+======================
+Tests: 8 (SUCCESSES: 0, FAILURES: 8)
+Failures: 8 (UNKNOWN: 0, LOW: 1, MEDIUM: 1, HIGH: 6, CRITICAL: 0)
+
+AWS-0086 (HIGH): Public access block does not block public ACLs
+════════════════════════════════════════
+S3 buckets should block public ACLs on buckets and any objects they contain. By blocking, PUTs with fail if the object has any public ACL a.
+
+
+See https://avd.aquasec.com/misconfig/aws-0086
+────────────────────────────────────────
+ storage.tf:40
+   via storage.tf:37-44 (aws_s3_bucket_public_access_block.artifacts)
+────────────────────────────────────────
+  37   resource "aws_s3_bucket_public_access_block" "artifacts" {
+  38     bucket = aws_s3_bucket.artifacts.id
+  39   
+  40 [   block_public_acls       = false
+  41     block_public_policy     = false
+  42     ignore_public_acls      = false
+  43     restrict_public_buckets = false
+  44   }
+────────────────────────────────────────
+
+
+AWS-0087 (HIGH): Public access block does not block public policies
+════════════════════════════════════════
+S3 bucket policy should have block public policy to prevent users from putting a policy that enable public access.
+
+
+See https://avd.aquasec.com/misconfig/aws-0087
+────────────────────────────────────────
+ storage.tf:41
+   via storage.tf:37-44 (aws_s3_bucket_public_access_block.artifacts)
+────────────────────────────────────────
+  37   resource "aws_s3_bucket_public_access_block" "artifacts" {
+  38     bucket = aws_s3_bucket.artifacts.id
+  39   
+  40     block_public_acls       = false
+  41 [   block_public_policy     = false
+  42     ignore_public_acls      = false
+  43     restrict_public_buckets = false
+  44   }
+────────────────────────────────────────
+
+
+AWS-0089 (LOW): Bucket has logging disabled
+════════════════════════════════════════
+Ensures S3 bucket logging is enabled for S3 buckets
+
+See https://avd.aquasec.com/misconfig/aws-0089
+────────────────────────────────────────
+ storage.tf:13-20
+────────────────────────────────────────
+  13 ┌ resource "aws_s3_bucket" "artifacts" {
+  14 │   bucket        = "${local.name}-artifacts"
+  15 │   force_destroy = true
+  16 │ 
+  17 │   tags = {
+  18 │     Name = "${local.name}-artifacts"
+  19 │   }
+  20 └ }
+────────────────────────────────────────
+
+
+AWS-0090 (MEDIUM): Bucket does not have versioning enabled
+════════════════════════════════════════
+Versioning in Amazon S3 is a means of keeping multiple variants of an object in the same bucket.
+
+You can use the S3 Versioning feature to preserve, retrieve, and restore every version of every object stored in your buckets.
+
+With versioning you can recover more easily from both unintended user actions and application failures.
+
+When you enable versioning, also keep in mind the potential costs of storing noncurrent versions of objects. To help manage those costs, consider setting up an S3 Lifecycle configuration.
+
+
+See https://avd.aquasec.com/misconfig/aws-0090
+────────────────────────────────────────
+ storage.tf:13-20
+────────────────────────────────────────
+  13 ┌ resource "aws_s3_bucket" "artifacts" {
+  14 │   bucket        = "${local.name}-artifacts"
+  15 │   force_destroy = true
+  16 │ 
+  17 │   tags = {
+  18 │     Name = "${local.name}-artifacts"
+  19 │   }
+  20 └ }
+────────────────────────────────────────
+
+
+AWS-0091 (HIGH): Public access block does not ignore public ACLs
+════════════════════════════════════════
+S3 buckets should ignore public ACLs on buckets and any objects they contain. By ignoring rather than blocking, PUT calls with public ACLs will still be applied but the ACL will be ignored.
+
+
+See https://avd.aquasec.com/misconfig/aws-0091
+────────────────────────────────────────
+ storage.tf:42
+   via storage.tf:37-44 (aws_s3_bucket_public_access_block.artifacts)
+────────────────────────────────────────
+  37   resource "aws_s3_bucket_public_access_block" "artifacts" {
+  38     bucket = aws_s3_bucket.artifacts.id
+  39   
+  40     block_public_acls       = false
+  41     block_public_policy     = false
+  42 [   ignore_public_acls      = false
+  43     restrict_public_buckets = false
+  44   }
+────────────────────────────────────────
+
+
+AWS-0092 (HIGH): Bucket has a public ACL: "public-read"
+════════════════════════════════════════
+Buckets should not have ACLs that allow public access
+
+
+See https://avd.aquasec.com/misconfig/aws-0092
+────────────────────────────────────────
+ storage.tf:34
+   via storage.tf:30-35 (aws_s3_bucket_acl.artifacts)
+────────────────────────────────────────
+  30   resource "aws_s3_bucket_acl" "artifacts" {
+  31     depends_on = [aws_s3_bucket_ownership_controls.artifacts]
+  32   
+  33     bucket = aws_s3_bucket.artifacts.id
+  34 [   acl    = "public-read"
+  35   }
+────────────────────────────────────────
+
+
+AWS-0093 (HIGH): Public access block does not restrict public buckets
+════════════════════════════════════════
+S3 buckets should restrict public policies for the bucket. By enabling, the restrict_public_buckets, only the bucket owner and AWS Services can access if it has a public policy.
+
+
+See https://avd.aquasec.com/misconfig/aws-0093
+────────────────────────────────────────
+ storage.tf:43
+   via storage.tf:37-44 (aws_s3_bucket_public_access_block.artifacts)
+────────────────────────────────────────
+  37   resource "aws_s3_bucket_public_access_block" "artifacts" {
+  38     bucket = aws_s3_bucket.artifacts.id
+  39   
+  40     block_public_acls       = false
+  41     block_public_policy     = false
+  42     ignore_public_acls      = false
+  43 [   restrict_public_buckets = false
+  44   }
+────────────────────────────────────────
+
+
+AWS-0132 (HIGH): Bucket does not encrypt data with a customer managed key.
+════════════════════════════════════════
+Encryption using AWS keys provides protection for your S3 buckets. To gain greater control over encryption, such as key rotation, access policies, and auditability, use customer managed keys (CMKs) with SSE-KMS.
+Note that SSE-KMS is not supported for S3 server access logging destination buckets; in such cases, use SSE-S3 instead.
+
+
+See https://avd.aquasec.com/misconfig/aws-0132
+────────────────────────────────────────
+ storage.tf:13-20
+────────────────────────────────────────
+  13 ┌ resource "aws_s3_bucket" "artifacts" {
+  14 │   bucket        = "${local.name}-artifacts"
+  15 │   force_destroy = true
+  16 │ 
+  17 │   tags = {
+  18 │     Name = "${local.name}-artifacts"
+  19 │   }
+  20 └ }
+────────────────────────────────────────
+
+
