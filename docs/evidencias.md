@@ -1,8 +1,16 @@
 # Evidencias de la demostración
 
-Checklist de artefactos y capturas que el equipo debe presentar. Se recomienda
-guardar los archivos en `docs/evidencias/` (ignorada por Git) y las capturas de
-pantalla/URLs en el informe.
+Checklist de artefactos y capturas que el equipo debe presentar. Los archivos y
+las capturas se guardan en `docs/evidencias/` y se referencian en el informe.
+
+## 0. Evidencias reales ya registradas
+
+- `docs/evidencias/insegura-desplegada-2026-10-14.md` — stack inseguro ("antes").
+- `docs/evidencias/remediada-desplegada-2026-10-14.md` — stack remediado in-place.
+- `docs/evidencias/secure-desplegada-2026-10-14.md` — stack seguro desplegado por
+  CI vía OIDC (ALB, subredes privadas).
+- `docs/evidencias/ejecucion-2026-10-14.md` — ejecución manual completa (ciclo
+  `apply` → verificación → `destroy`).
 
 ## 1. Ejecución de Checkov sobre la infraestructura insegura
 

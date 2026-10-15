@@ -37,6 +37,12 @@ pública del task (sin ALB), ECR para la imagen, S3 para artefactos, CloudWatch
 Logs, KMS, SSM Parameter Store y VPC Flow Logs. El stack `secure` demuestra la
 versión con **red privada + ALB**.
 
+**Desplegado en vivo (AWS `us-east-1`):**
+
+- Stack **seguro** (CI + OIDC, ALB): <http://secure-demo-dev-alb-369160995.us-east-1.elb.amazonaws.com/health>
+- Stack **remediado** (demo, IP pública del task): <http://184.192.101.2:8080/health>
+- Stack **seguro** en detalle: `docs/evidencias/secure-desplegada-2026-10-14.md`.
+
 ## 4. Antes (stack inseguro)
 
 Desplegado y verificado en vivo (`http://184.195.170.37:8080/health`,

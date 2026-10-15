@@ -8,6 +8,19 @@ se documentan los hallazgos, se corrigen (≥ 4, aquí 8+) y se despliega la
 versión corregida con un pipeline de **GitHub Actions** autenticado en AWS por
 **OIDC** (sin claves estáticas).
 
+> ### En vivo (AWS · `us-east-1`)
+>
+> - **Stack seguro desplegado por CI** (ALB + subredes privadas):
+>   <http://secure-demo-dev-alb-369160995.us-east-1.elb.amazonaws.com/health>
+>   → `{"status":"healthy"}`
+> - **Stack remediado (demo, ECS Fargate con IP pública del task)**:
+>   <http://184.192.101.2:8080/health>
+>   → `{"version":"6bad1a6","status":"healthy"}`
+>
+> Servicio ECS `secure-demo-dev-service` (`ACTIVE`, 1/1) en el clúster
+> `secure-demo-dev`. El DNS del ALB y la IP del task cambian si la
+> infraestructura se destruye y se vuelve a crear.
+
 ## 1. Descripción
 
 El repositorio contiene la misma arquitectura en tres estados:
@@ -141,10 +154,18 @@ Configura en el repositorio (Settings → Secrets and variables → Actions):
 | Variable | `TF_LOCK_TABLE` | salida `tflock_table` |
 
 La política IAM mínima del rol (creada en `bootstrap/iam.tf`) está acotada por
-servicio y, cuando la API lo permite, por ARN. `iam:PassRole` se restringe a
-`ecs-tasks.amazonaws.com` y a roles `secure-demo-*`. La relación de confianza
-solo admite los `sub` configurados (`refs/heads/main` y el entorno
-`production`). No se usan claves de acceso de AWS.
+servicio y, cuando la API lo permite, por ARN. `iam:PassRole` se restringe a los
+servicios que lo necesitan (`ecs-tasks.amazonaws.com`,
+`vpc-flow-logs.amazonaws.com` y `delivery.logs.amazonaws.com`) y a roles
+`secure-demo-*`. La relación de confianza solo admite los `sub` configurados
+(`refs/heads/main` y el entorno `production`) tanto en su forma clásica como en
+la de **identificadores inmutables** que emite GitHub
+(`repo:JOJA-TECH@339326270/aws-security-remediation-checkov-trivy@1419424003:...`).
+No se usan claves de acceso de AWS.
+
+GitHub ha cambiado los `sub` del OIDC para incluir IDs numéricos del propietario
+(`339326270`) y del repositorio (`1419424003`); la política de confianza acepta
+ambas variantes para no romperse con el cambio.
 
 > Si necesitas un **entorno** con aprobación manual, crea en GitHub el entorno
 > `production` y añade revisores obligatorios; el workflow `deploy.yml` ya lo usa.
@@ -276,6 +297,10 @@ O automático: haz merge a `main`. El workflow `Security` debe pasar; luego
 
 ## 18. Verificación del endpoint
 
+Endpoint actualmente desplegado por CI:
+
+<http://secure-demo-dev-alb-369160995.us-east-1.elb.amazonaws.com/health>
+
 ```bash
 scripts/verify.sh "$(cd terraform/secure && terraform output -raw health_url)"
 curl "$(cd terraform/secure && terraform output -raw app_url)"
@@ -312,8 +337,10 @@ pipeline bloqueado y exitoso, imagen inmutable en ECR, ECS en ejecución, prueba
 de `/health`, `plan/apply/destroy`.
 
 Ejecuciones reales registradas:
-`docs/evidencias/insegura-desplegada-2026-10-14.md` (stack inseguro desplegado)
-y `docs/evidencias/remediada-desplegada-2026-10-14.md` (stack remediado).
+`docs/evidencias/insegura-desplegada-2026-10-14.md` (stack inseguro desplegado),
+`docs/evidencias/remediada-desplegada-2026-10-14.md` (stack remediado) y
+`docs/evidencias/secure-desplegada-2026-10-14.md` (stack seguro desplegado por
+CI vía OIDC).
 
 ## 21. Destruir la infraestructura
 
@@ -403,7 +430,8 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 │   └── evidencias/
 │       ├── ejecucion-2026-10-14.md
 │       ├── insegura-desplegada-2026-10-14.md
-│       └── remediada-desplegada-2026-10-14.md
+│       ├── remediada-desplegada-2026-10-14.md
+│       └── secure-desplegada-2026-10-14.md
 ├── checkov/
 │   ├── remediated.yaml        # skips justificados (stack remediado in-place)
 │   └── secure.yaml            # skips justificados para la infra segura

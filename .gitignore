@@ -20,7 +20,6 @@ tfplan
 checkov-results/
 trivy-results/
 *.sarif
-reports/
 sbom.json
 
 # Python

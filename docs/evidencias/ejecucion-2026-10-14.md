@@ -2,6 +2,11 @@
 
 Fecha: 2026-10-14 · Cuenta AWS: `948218213402` · Región: `us-east-1` · CLI: aws-cli 1.46
 
+> **Nota:** esta ejecución **manual** terminó con `terraform destroy` (el DNS del
+> ALB era `secure-demo-dev-alb-765800279...`). Con posterioridad la
+> infraestructura se **redesplegó desde CI** (OIDC); el estado actual y el DNS
+> vigente están en `docs/evidencias/secure-desplegada-2026-10-14.md`.
+
 Ejecución completa del ejercicio contra AWS real, incluido el ciclo de vida
 (`apply` → verificación → `destroy`). Comandos y resultados observados.
 
