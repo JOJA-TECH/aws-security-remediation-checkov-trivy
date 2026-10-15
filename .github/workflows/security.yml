@@ -147,7 +147,7 @@ jobs:
         run: docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app
 
       - name: Trivy image - secure (gate)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           image-ref: ${{ env.SECURE_IMAGE }}
           format: "sarif"
@@ -159,7 +159,7 @@ jobs:
 
       - name: Trivy image - insecure (informational)
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           image-ref: "insecure-demo:ci"
           format: "table"
@@ -168,7 +168,7 @@ jobs:
           exit-code: "1"
 
       - name: Trivy filesystem (secrets + misconfig) - secure (gate)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -183,7 +183,7 @@ jobs:
 
       - name: Trivy filesystem - baseline (informational)
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           scan-type: "fs"
           scan-ref: "terraform/baseline"
@@ -193,7 +193,7 @@ jobs:
           exit-code: "1"
 
       - name: Trivy config (Terraform misconfig) - gate on remediated
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           scan-type: "config"
           scan-ref: "terraform/insecure"
@@ -204,7 +204,7 @@ jobs:
           trivyignores: "trivy/remediated.ignore"
 
       - name: Trivy config (Terraform misconfig) - gate on secure
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           scan-type: "config"
           scan-ref: "terraform/secure"
