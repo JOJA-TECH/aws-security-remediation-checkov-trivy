@@ -342,12 +342,20 @@ data "aws_iam_policy_document" "github_permissions" {
       "ssm:GetParameter",
       "ssm:GetParameters",
       "ssm:DeleteParameter",
-      "ssm:DescribeParameters",
       "ssm:AddTagsToResource",
       "ssm:RemoveTagsFromResource",
       "ssm:ListTagsForResource"
     ]
     resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/secure-demo-*"]
+  }
+
+  # ssm:DescribeParameters does not support resource-level permissions, so it
+  # must be granted on "*" in a separate statement.
+  statement {
+    sid       = "SsmDescribe"
+    effect    = "Allow"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
   }
 
   # --- IAM (Terraform manages the ECS roles) ---------------------------------
