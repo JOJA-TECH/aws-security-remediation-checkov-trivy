@@ -54,15 +54,15 @@ checkov -d terraform/secure --framework terraform --config-file checkov/secure.y
 ## 7. Trivy exitoso tras las correcciones
 
 ```bash
-trivy config --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
+trivy config --ignorefile trivy-ignore/secure.ignore --severity CRITICAL,HIGH --exit-code 1 terraform/secure
 trivy fs --scanners secret,misconfig --skip-dirs terraform/baseline --skip-files app/Dockerfile.insecure \
-  --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH --exit-code 1 .
+  --ignorefile trivy-ignore/secure.ignore --severity CRITICAL,HIGH --exit-code 1 .
 docker build -t secure-demo:ci ./app
 trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 secure-demo:ci
 ```
 - **Esperado:** exit code 0. Si aparecen CVE fijos, actualizar la imagen base
   `python:3.12.x-slim-bookworm`. Registrar cualquier vulnerabilidad aceptada
-  (sin fix) en `trivy/secure.ignore` **con justificación**.
+  (sin fix) en `trivy-ignore/secure.ignore` **con justificación**.
 
 ## 8. Pipeline bloqueado por una vulnerabilidad/incumplimiento
 

@@ -24,7 +24,7 @@ evidencia de todo el ciclo.
 | `terraform/insecure/` | El mismo stack **remediado in-place** por commits (evidencia del "después"). |
 | `terraform/secure/` | Rediseño de **referencia productiva** (subredes privadas + ALB + KMS + SSM). |
 | `app/` | Aplicación Python mínima (`/` y `/health`), Dockerfile endurecido y `Dockerfile.insecure`. |
-| `checkov/`, `trivy/` | Configuraciones de excepciones justificadas. |
+| `checkov/`, `trivy-ignore/` | Configuraciones de excepciones justificadas. |
 | `scripts/` | `deploy.sh`, `verify.sh`, `scan.sh`. |
 | `.github/workflows/` | `security.yml` (escaneo/gate) y `deploy.yml` (OIDC, sin claves estáticas). |
 | `bootstrap/` | OIDC de GitHub Actions + backend de estado. |
@@ -93,7 +93,7 @@ Evidencia AWS y comandos en `docs/evidencias/remediada-desplegada-2026-10-14.md`
 
 ## 7. Excepciones aceptadas (justificadas)
 
-Documentadas en `checkov/remediated.yaml` y `trivy/remediated.ignore`, con
+Documentadas en `checkov/remediated.yaml` y `trivy-ignore/remediated.ignore`, con
 motivo, riesgo, control compensatorio, aprobador y fecha de revisión:
 
 - `CKV_AWS_333` — el stack remediado conserva la arquitectura original (IP

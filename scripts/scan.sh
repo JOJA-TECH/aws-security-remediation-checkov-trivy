@@ -61,17 +61,17 @@ if have trivy; then
   trivy config --quiet terraform/baseline > "$REPORTS_DIR/trivy-config-baseline.txt" || true
 
   log "Trivy config: remediated (gate)"
-  trivy config --quiet --ignorefile trivy/remediated.ignore --severity CRITICAL,HIGH \
+  trivy config --quiet --ignorefile trivy-ignore/remediated.ignore --severity CRITICAL,HIGH \
     --exit-code 1 terraform/insecure | tee "$REPORTS_DIR/trivy-config-remediated.txt"
 
   log "Trivy config: secure (gate)"
-  trivy config --quiet --ignorefile trivy/secure.ignore --severity CRITICAL,HIGH \
+  trivy config --quiet --ignorefile trivy-ignore/secure.ignore --severity CRITICAL,HIGH \
     --exit-code 1 terraform/secure | tee "$REPORTS_DIR/trivy-config-secure.txt"
 
   log "Trivy fs: secrets + misconfig (gate)"
   trivy fs --quiet --scanners secret,misconfig \
     --skip-dirs terraform/baseline --skip-dirs docs --skip-dirs .git \
-    --skip-files app/Dockerfile.insecure --ignorefile trivy/secure.ignore \
+    --skip-files app/Dockerfile.insecure --ignorefile trivy-ignore/secure.ignore \
     --severity CRITICAL,HIGH --exit-code 1 . | tee "$REPORTS_DIR/trivy-fs-secure.txt"
 else
   echo "trivy not found - skipping. See README for install." >&2

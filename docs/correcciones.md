@@ -148,7 +148,7 @@ infraestructura corregida vive en `terraform/secure/` y el Dockerfile seguro en
 
 Las siguientes excepciones están declaradas de forma **específica** (nunca
 mediante `soft-fail` global). El comentario de exclusión vive en
-`checkov/secure.yaml` y `trivy/secure.ignore`.
+`checkov/secure.yaml` y `trivy-ignore/secure.ignore`.
 
 | Control | Motivo técnico | Riesgo asociado | Medida compensatoria | Aprobador | Revisión | Comentario (dónde) |
 |---------|----------------|-----------------|----------------------|-----------|----------|--------------------|
@@ -157,10 +157,10 @@ mediante `soft-fail` global). El comentario de exclusión vive en
 | `CKV_AWS_378` | El target group usa HTTP porque el listener es HTTP. | Igual que `CKV_AWS_2`. | Igual que `CKV_AWS_2`. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml` |
 | `CKV2_AWS_20` | No hay listener HTTPS al que redirigir. | Igual que `CKV_AWS_2`. | Igual que `CKV_AWS_2`. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml` |
 | `CKV2_AWS_28` | WAF tiene costo mensual no justificable en una demo. | Sin filtrado L7. | Lista de IP permitidas vía `var.allowed_http_cidrs` en el SG del ALB. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml` |
-| `CKV_AWS_18` / `AWS-0089` | El bucket ya almacena los access logs del ALB; “loguear el logger” requiere otro bucket. | Sin auditoría de acceso al bucket de logs. | Versionado + SSE-S3 + bucket privado; CloudTrail a nivel de cuenta. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy/secure.ignore` |
+| `CKV_AWS_18` / `AWS-0089` | El bucket ya almacena los access logs del ALB; “loguear el logger” requiere otro bucket. | Sin auditoría de acceso al bucket de logs. | Versionado + SSE-S3 + bucket privado; CloudTrail a nivel de cuenta. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy-ignore/secure.ignore` |
 | `CKV_AWS_144` | Replicación cross-region aumenta costo y no aporta a la demo. | Pérdida ante desastre regional. | Versionado habilitado; el bucket es solo para logs. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml` |
-| `CKV_AWS_145` / `AWS-0132` | **La entrega de access logs del ALB no soporta SSE-KMS**; el bucket debe usar SSE-S3 (AES256). Verificado con AWS: `ModifyLoadBalancerAttributes` devuelve `InvalidConfigurationRequest: Access Denied for bucket` si el bucket usa KMS. | Cifrado con clave gestionada por S3 en lugar de CMK. | El bucket sigue cifrado en reposo (AES256), privado (Block Public Access), versionado y con lifecycle de 30 días. Aplica solo a este bucket de logs. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy/secure.ignore`, `terraform/secure/storage.tf` |
+| `CKV_AWS_145` / `AWS-0132` | **La entrega de access logs del ALB no soporta SSE-KMS**; el bucket debe usar SSE-S3 (AES256). Verificado con AWS: `ModifyLoadBalancerAttributes` devuelve `InvalidConfigurationRequest: Access Denied for bucket` si el bucket usa KMS. | Cifrado con clave gestionada por S3 en lugar de CMK. | El bucket sigue cifrado en reposo (AES256), privado (Block Public Access), versionado y con lifecycle de 30 días. Aplica solo a este bucket de logs. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy-ignore/secure.ignore`, `terraform/secure/storage.tf` |
 | `CKV_AWS_150` | Protección de borrado del ALB dificultaría `terraform destroy` y el control de costos. | Borrado accidental del ALB. | `prevent_destroy` puede habilitarse en producción; el estado está versionado. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml` |
-| `CKV_AWS_260` / `AWS-0053` | El ALB es el punto de entrada HTTP público de la demo. | Superficie HTTP pública. | Se puede restringir con `allowed_http_cidrs`; solo puerto 80. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy/secure.ignore` |
-| `AWS-0054` (Trivy) | Listener HTTP sin TLS (misma razón que `CKV_AWS_2`). | Igual que `CKV_AWS_2`. | Igual que `CKV_AWS_2`. | `arquitectura-uc` | 2026-06-30 | `trivy/secure.ignore` |
-| `AWS-0104` (Trivy) | Egress `443` a `0.0.0.0/0` es necesario para alcanzar las APIs de AWS (ECR/SSM/KMS) a través del NAT. | Egress amplio en 443. | Solo puerto 443; sin 80 ni otros puertos; NAT único. | `arquitectura-uc` | 2026-06-30 | `trivy/secure.ignore` |
+| `CKV_AWS_260` / `AWS-0053` | El ALB es el punto de entrada HTTP público de la demo. | Superficie HTTP pública. | Se puede restringir con `allowed_http_cidrs`; solo puerto 80. | `arquitectura-uc` | 2026-06-30 | `checkov/secure.yaml`, `trivy-ignore/secure.ignore` |
+| `AWS-0054` (Trivy) | Listener HTTP sin TLS (misma razón que `CKV_AWS_2`). | Igual que `CKV_AWS_2`. | Igual que `CKV_AWS_2`. | `arquitectura-uc` | 2026-06-30 | `trivy-ignore/secure.ignore` |
+| `AWS-0104` (Trivy) | Egress `443` a `0.0.0.0/0` es necesario para alcanzar las APIs de AWS (ECR/SSM/KMS) a través del NAT. | Egress amplio en 443. | Solo puerto 443; sin 80 ni otros puertos; NAT único. | `arquitectura-uc` | 2026-06-30 | `trivy-ignore/secure.ignore` |

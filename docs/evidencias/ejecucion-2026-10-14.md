@@ -15,8 +15,8 @@ Ejecución completa del ejercicio contra AWS real, incluido el ciclo de vida
 | Checkov (`checkov/remediated.yaml`) | `terraform/insecure` (remediado) | **0 failed** / 124 passed |
 | Checkov (`checkov/secure.yaml`) | `terraform/secure` | **0 failed** / 157 passed |
 | Trivy config | `terraform/baseline` | múltiples HIGH (S3 público, SG abiertos, IAM, etc.) |
-| Trivy config (`trivy/remediated.ignore`) | `terraform/insecure` (remediado) | **0** (exit 0) |
-| Trivy config (`trivy/secure.ignore`) | `terraform/secure` | **0** (exit 0) |
+| Trivy config (`trivy-ignore/remediated.ignore`) | `terraform/insecure` (remediado) | **0** (exit 0) |
+| Trivy config (`trivy-ignore/secure.ignore`) | `terraform/secure` | **0** (exit 0) |
 | Trivy fs secretos | baseline / remediated / secure | 2 secretos / 0 / 0 |
 | Trivy image | insegura (`python:latest`, root) | **3689 vulns** (16 CRITICAL, 313 HIGH) + PAT |
 | Trivy image | segura (base pin por digest, sin pip) | **0** (exit 0) |

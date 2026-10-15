@@ -28,7 +28,7 @@ trivy fs --scanners secret ../baseline                # 2 secretos
 
 # 4) Escaneo "después" (debe quedar en 0 con las excepciones justificadas)
 checkov -d . --framework terraform --config-file ../checkov/remediated.yaml
-trivy config --ignorefile ../trivy/remediated.ignore --severity CRITICAL,HIGH --exit-code 1 .
+trivy config --ignorefile ../trivy-ignore/remediated.ignore --severity CRITICAL,HIGH --exit-code 1 .
 
 # 5) Redepliegue de la versión corregida y verificación
 terraform apply -var "image_uri=<digest>"
@@ -47,7 +47,7 @@ terraform destroy -var "image_uri=<digest>"
 | C3 | **IAM y secretos**: `AdministratorAccess` (CKV_AWS_274), política `Action:*`/`Resource:*` (CKV_AWS_1, CKV_AWS_355/62/63, CKV_AWS_286-290, CKV2_AWS_40), secretos en variables de entorno (Trivy secret) | Rol de ejecución de mínimo privilegio (ECR/logs/SSM/KMS por ARN); rol de tarea sin permisos; secretos `DB_PASSWORD`/`API_TOKEN` generados y guardados como SSM `SecureString` (KMS) e inyectados por `secrets` | `54f0232` |
 | C4 | **ECR y almacenamiento**: etiquetas mutables (CKV_AWS_51, AWS-0031), sin escaneo (CKV_AWS_163, AWS-0030), sin KMS (CKV_AWS_136, AWS-0033), política pública (CKV_AWS_32, AWS-0032); S3 público (CKV_AWS_20, CKV_AWS_53-56, CKV_AWS_70, AWS-0086/0092/0093), sin cifrado (CKV_AWS_19/145, AWS-0132), sin versionado (CKV_AWS_21, AWS-0090), sin lifecycle/notificaciones (CKV2_AWS_61/62) | ECR `IMMUTABLE` + `scan_on_push` + KMS + lifecycle; se elimina la política pública; S3 con Block Public Access total, cifrado KMS por defecto, versionado, lifecycle y notificaciones | `3238f89`, `66997f5` |
 | C5 | **Contenedor**: root (CKV_AWS_22, DS-0002), FS escribible (CKV_AWS_336), imagen mutable `latest` (DS-0001, supply chain) | `user=10001:10001`, `readonlyRootFilesystem=true`, `privileged=false`; imagen por digest/SHA con validación que rechaza `latest`; healthcheck; circuit breaker con rollback | `d9cd6d8` |
-| C6 | **CI**: sin compuerta sobre el stack remediado | `checkov/remediated.yaml` + `trivy/remediated.ignore`; `scan.sh`/`security.yml` escanean baseline (informativo), remediado (gate) y secure (gate) | `40d4558` |
+| C6 | **CI**: sin compuerta sobre el stack remediado | `checkov/remediated.yaml` + `trivy-ignore/remediated.ignore`; `scan.sh`/`security.yml` escanean baseline (informativo), remediado (gate) y secure (gate) | `40d4558` |
 
 ## 3. Resultado de los escáneres
 
@@ -61,7 +61,7 @@ terraform destroy -var "image_uri=<digest>"
 ## 4. Excepciones aceptadas (stack remediado)
 
 Se documentan de forma explícita en `checkov/remediated.yaml` y
-`trivy/remediated.ignore`; **no** se usa `soft-fail` global:
+`trivy-ignore/remediated.ignore`; **no** se usa `soft-fail` global:
 
 | ID | Motivo | Riesgo | Control compensatorio |
 |----|--------|--------|-----------------------|

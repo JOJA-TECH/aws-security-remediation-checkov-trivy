@@ -17,7 +17,7 @@ checkov -d terraform/secure --framework terraform --config-file checkov/secure.y
 
 # Trivy: misconfiguración de IaC
 trivy config terraform/baseline
-trivy config terraform/secure --ignorefile trivy/secure.ignore
+trivy config terraform/secure --ignorefile trivy-ignore/secure.ignore
 
 # Trivy: secretos en el repositorio
 trivy fs --scanners secret,misconfig terraform/baseline

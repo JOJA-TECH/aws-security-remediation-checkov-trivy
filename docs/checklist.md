@@ -100,7 +100,7 @@ insegura — Checkov y Trivy”. `✅` cumplido, `📄` evidencia.
 | README técnico completo (23 secciones) | ✅ | `README.md` |
 | Estructura del repositorio | ✅ | README + repo real |
 | Guion de demo ≤ 10 min | ✅ | `docs/demo-guion.md` |
-| Excepciones justificadas (ID, motivo, riesgo, compensación, aprobador, fecha, comentario) | ✅ | `docs/correcciones.md` + `checkov/secure.yaml` + `trivy/secure.ignore` |
+| Excepciones justificadas (ID, motivo, riesgo, compensación, aprobador, fecha, comentario) | ✅ | `docs/correcciones.md` + `checkov/secure.yaml` + `trivy-ignore/secure.ignore` |
 
 ## Validación técnica ejecutada
 
@@ -111,8 +111,8 @@ insegura — Checkov y Trivy”. `✅` cumplido, `📄` evidencia.
 | `checkov -d terraform/secure --config-file checkov/secure.yaml` | ✅ 0 failed |
 | `checkov -d terraform/insecure --config-file checkov/remediated.yaml` | ✅ 0 failed (124 passed) |
 | `checkov -d terraform/baseline` | ✅ 42 failed (evidencia) |
-| `trivy config terraform/secure --ignorefile trivy/secure.ignore` | ✅ exit 0 |
-| `trivy config terraform/insecure --ignorefile trivy/remediated.ignore` | ✅ exit 0 |
+| `trivy config terraform/secure --ignorefile trivy-ignore/secure.ignore` | ✅ exit 0 |
+| `trivy config terraform/insecure --ignorefile trivy-ignore/remediated.ignore` | ✅ exit 0 |
 | `trivy config terraform/baseline` | ✅ 23 misconfigs (evidencia) |
 | `trivy fs --scanners secret terraform/baseline` | ✅ 2 secretos (evidencia) |
 | `trivy fs` (gate sobre rutas seguras) | ✅ exit 0 |

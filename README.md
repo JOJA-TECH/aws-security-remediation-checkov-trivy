@@ -204,8 +204,8 @@ checkov -d terraform/secure --framework terraform --config-file checkov/secure.y
 ```bash
 # Misconfiguración de IaC
 trivy config terraform/baseline
-trivy config terraform/insecure --ignorefile trivy/remediated.ignore
-trivy config terraform/secure --ignorefile trivy/secure.ignore
+trivy config terraform/insecure --ignorefile trivy-ignore/remediated.ignore
+trivy config terraform/secure --ignorefile trivy-ignore/secure.ignore
 
 # Secretos y misconfiguración en el repositorio
 trivy fs --scanners secret,misconfig terraform/baseline
@@ -297,8 +297,8 @@ Respuesta esperada de `/health`:
   (`checkov/secure.yaml`). Las excepciones deben ser skips específicos y
   justificados; nunca `soft-fail` global.
 - **Trivy config** detecta `CRITICAL`/`HIGH` en `terraform/insecure` o
-  `terraform/secure` (con las excepciones `trivy/remediated.ignore` /
-  `trivy/secure.ignore`).
+  `terraform/secure` (con las excepciones `trivy-ignore/remediated.ignore` /
+  `trivy-ignore/secure.ignore`).
 - **Trivy image** detecta `CRITICAL`/`HIGH` **con fix** (política
   `--ignore-unfixed`, justificada en `docs/correcciones.md`).
 - **Trivy fs** detecta secretos o misconfiguraciones `CRITICAL`/`HIGH` en las
@@ -407,7 +407,7 @@ añadir un `workflow_dispatch` con destrucción manual si se desea.
 ├── checkov/
 │   ├── remediated.yaml        # skips justificados (stack remediado in-place)
 │   └── secure.yaml            # skips justificados para la infra segura
-├── trivy/
+├── trivy-ignore/
 │   ├── remediated.ignore      # excepciones justificadas (stack remediado)
 │   └── secure.ignore          # excepciones justificadas de Trivy
 ├── docker-compose.yml

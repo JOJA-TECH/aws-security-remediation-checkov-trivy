@@ -9,7 +9,7 @@
 # keys). The bucket must use SSE-S3 (AES256). See:
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
 # The CKV_AWS_145 exception is recorded in checkov/secure.yaml and AWS-0132 in
-# trivy/secure.ignore.
+# trivy-ignore/secure.ignore.
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "alb_logs" {
