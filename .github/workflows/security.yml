@@ -146,11 +146,15 @@ jobs:
       - name: Build insecure image (informational)
         run: docker build -f app/Dockerfile.insecure -t insecure-demo:ci ./app
 
+      - name: Prepare Trivy results directory
+        run: mkdir -p trivy-results
+
       - name: Trivy image - secure (gate)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0 (known-safe; tags <0.35.0 were compromised in CVE-2026-33634)
         with:
           image-ref: ${{ env.SECURE_IMAGE }}
           format: "sarif"
+          limit-severities-for-sarif: "true"
           output: "trivy-results/secure-image.sarif"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
@@ -177,6 +181,7 @@ jobs:
           skip-files: "app/Dockerfile.insecure"
           trivyignores: "trivy/secure.ignore"
           format: "sarif"
+          limit-severities-for-sarif: "true"
           output: "trivy-results/secure-fs.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
@@ -198,6 +203,7 @@ jobs:
           scan-type: "config"
           scan-ref: "terraform/insecure"
           format: "sarif"
+          limit-severities-for-sarif: "true"
           output: "trivy-results/remediated-config.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
@@ -209,6 +215,7 @@ jobs:
           scan-type: "config"
           scan-ref: "terraform/secure"
           format: "sarif"
+          limit-severities-for-sarif: "true"
           output: "trivy-results/secure-config.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
